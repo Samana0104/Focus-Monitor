@@ -14,6 +14,7 @@ from PySide6.QtMultimedia import (
 from Singleton.Singleton import Singleton
 from System.Define import LogLevel
 from System.FunctionLibrary import FunctionLibrary
+from AI.Detector import EyeDetecter
 
 
 class CameraManager(Singleton):
@@ -32,6 +33,8 @@ class CameraManager(Singleton):
         self._frame_lock = Lock()
         self._bgr_frame: np.ndarray | None = None
         self._last_error = ""
+
+        self._detector: EyeDetecter = EyeDetecter()  # Initialize the detector here
 
     @property
     def is_running(self) -> bool:
@@ -171,6 +174,10 @@ class CameraManager(Singleton):
 
         with self._frame_lock:
             self._bgr_frame = bgr_frame
+
+        # AI 테스트를 위해 detector를 호출하여 프레임을 처리합니다.
+        self._detector.detect(bgr_frame)  # Call the detector with the new frame
+        
 
     def __on_camera_error(self, error: QCamera.Error, message: str) -> None:
         if error == QCamera.Error.NoError:
