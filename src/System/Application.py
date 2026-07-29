@@ -1,24 +1,21 @@
 import sys
+import System
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
-
-import System
+from System.FunctionLibrary import FunctionLibrary
+from Singleton.Settings import settings_instance
 from UI.UIHandler import UIHandler
 
 
 class Application:
-    def __init__(self, target_fps: float = 30.0):
-        if target_fps <= 0:
-            raise ValueError("target_fps must be greater than zero")
-
+    def __init__(self):
         self._running = False
         self._frame_count = 0
         self._qt_app = QApplication.instance() or QApplication(sys.argv)
         self._ui = UIHandler()
 
         self._timer = QTimer()
-        self._timer.setInterval(round(1000 / target_fps))
         self._timer.timeout.connect(self._tick)
         self._qt_app.lastWindowClosed.connect(self.stop)
 
@@ -28,7 +25,9 @@ class Application:
 
     def initialize(self) -> None:
         """Initialize and show application resources once."""
+
         System.FunctionLibrary.log("Application is starting...", System.LogLevel.NONE)
+        settings_instance.load()
         self._ui.initialize()
 
     def process_input(self) -> None:
@@ -63,7 +62,8 @@ class Application:
     def run(self) -> int:
         """Start the Qt event loop and block until the application stops."""
         if self._running:
-            raise RuntimeError("Application is already running")
+            FunctionLibrary.log("Application is already running.", System.LogLevel.WARNING)
+            self.shutdown()
 
         self.initialize()
         self._running = True
@@ -76,10 +76,11 @@ class Application:
             self.shutdown()
 
     def stop(self) -> None:
-        """Stop frame updates and request application shutdown."""
         if not self._running:
             return
 
         self._running = False
         self._timer.stop()
         self._qt_app.quit()
+
+        settings_instance.save()
