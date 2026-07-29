@@ -44,6 +44,7 @@ class FunctionLibrary:
         reset = TerminalColor.RESET.value
         print(f"[{level.name}]{color}{message}{reset}")
 
+    @staticmethod
     def get_root_path() -> Path:
         """
             프로젝트 루트 경로를 반환합니다.
@@ -55,6 +56,7 @@ class FunctionLibrary:
 
         return Path(__file__).resolve().parents[2]
 
+    @staticmethod
     def get_root_path_str() -> str:
         """
             프로젝트 루트 경로를 문자열로 반환합니다.

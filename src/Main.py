@@ -11,7 +11,7 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\nStopping system...")
     except Exception:
-        System.FunctionLibrary.log( traceback.format_exc(), System.LogLevel.DANGER)
+        System.FunctionLibrary.log(traceback.format_exc(), System.LogLevel.DANGER)
     finally:
         System.FunctionLibrary.log("System has stopped.", System.LogLevel.NONE)
         application.stop()

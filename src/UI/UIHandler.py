@@ -1,248 +1,220 @@
+from pathlib import Path
+
 from PySide6.QtCore import (
     QEasingCurve,
     QParallelAnimationGroup,
     QPropertyAnimation,
     QSize,
     Qt,
-    Signal,
+    QVariantAnimation,
 )
-from Singleton.Settings import settings_instance
-from Singleton.Camera import camera_manager
-from PySide6.QtWidgets import QFrame
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
+    QFrame,
     QGraphicsOpacityEffect,
-    QHBoxLayout,
     QLabel,
-    QListWidget,
     QListWidgetItem,
     QMainWindow,
-    QPushButton,
     QVBoxLayout,
-    QWidget,
 )
 
+from Singleton.Camera import camera_manager
 from Singleton.Settings import settings_instance
+from Singleton.Timer import timer_manager
+from System.FunctionLibrary import FunctionLibrary
+from System.Define import UI_STYLE_PATH
+from UI.UIMainWindow import UIMainWindow
 
 
 class NotificationCard(QFrame):
-    def __init__(self, title: str, detail: str = ""):
+    def __init__(self) -> None:
         super().__init__()
         self.setObjectName("notificationCard")
 
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 13, 16, 13)
-        layout.setSpacing(5)
+        layout: QVBoxLayout = QVBoxLayout(self)
+        layout.setContentsMargins(
+            settings_instance.ui_layout["notification_margin_horizontal"],
+            settings_instance.ui_layout["notification_margin_vertical"],
+            settings_instance.ui_layout["notification_margin_horizontal"],
+            settings_instance.ui_layout["notification_margin_vertical"],
+        )
+        layout.setSpacing(
+            settings_instance.ui_layout["notification_content_spacing"]
+        )
 
-        title_label = QLabel(title)
-        title_label.setObjectName("notificationTitle")
-        layout.addWidget(title_label)
+        self._title_label: QLabel = QLabel()
+        self._title_label.setObjectName("notificationTitle")
+        layout.addWidget(self._title_label)
 
-        if detail:
-            detail_label = QLabel(detail)
-            detail_label.setObjectName("notificationDetail")
-            detail_label.setWordWrap(True)
-            layout.addWidget(detail_label)
+        self._detail_label: QLabel = QLabel()
+        self._detail_label.setObjectName("notificationDetail")
+        self._detail_label.setWordWrap(True)
+        layout.addWidget(self._detail_label)
+
+    def set_content(self, title: str, detail: str = "") -> None:
+        self._title_label.setText(title)
+        self._detail_label.setText(detail)
+        self._detail_label.setVisible(bool(detail))
 
 
 class UIHandler(QMainWindow):
-
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-        self._layout_settings = getattr(settings_instance, "ui_layout", {})
+        self.ui: UIMainWindow = UIMainWindow()
+        self.ui.setup_ui(self)
         self._animations: list[QParallelAnimationGroup] = []
-        self._pixmap = QPixmap()
-        self._is_on_break = False
-        self._camera_panel = self.__create_camera_panel()
+        self._is_on_break: bool = False
+        self._notification_requested: bool = False
 
         self.setWindowTitle(settings_instance["window_title"])
         self.resize(
             settings_instance["window_width"],
             settings_instance["window_height"],
         )
+        self.ui.camera_video.setAspectRatioMode(
+            Qt.AspectRatioMode.KeepAspectRatioByExpanding
+        )
+        self.ui.start_button.clicked.connect(self.start_requested)
+        self.ui.break_button.clicked.connect(self.break_requested)
+        self.ui.notification_list.verticalScrollBar().rangeChanged.connect(
+            self.__keep_notification_scroll_at_bottom
+        )
+        self.__load_stylesheet()
 
-        central_widget = QWidget()
-        central_widget.setObjectName("mainRoot")
-        self.setCentralWidget(central_widget)
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key.Key_1 and not event.isAutoRepeat():
+            self._notification_requested = True
+            event.accept()
+            return
+        super().keyPressEvent(event)
 
-        main_layout = QHBoxLayout(central_widget)
-        margin = self._layout_settings.get("window_margin", 16)
-        main_layout.setContentsMargins(margin, margin, margin, margin)
-        main_layout.setSpacing(self._layout_settings.get("panel_spacing", 16))
-
-        main_layout.addWidget(self._camera_panel, stretch=3)
-        main_layout.addWidget(self.__create_side_panel(), stretch=1)
-
-        self.setStyleSheet(getattr(settings_instance, "ui_stylesheet", ""))
+    def consume_notification_request(self) -> bool:
+        if not self._notification_requested:
+            return False
+        self._notification_requested = False
+        return True
 
     def start_requested(self, checked: bool = False) -> None:
         self._is_on_break = False
-        self._camera_label.setText("카메라 연결을 기다리는 중입니다")
-        camera_manager.run()
+        self.__show_camera_waiting()
+        self.__start_camera()
 
     def break_requested(self, checked: bool = False) -> None:
         self._is_on_break = True
         camera_manager.stop()
-        self._pixmap = QPixmap()
-        self._camera_label.clear()
-        self._camera_label.setText("카메라 연결을 기다리는 중입니다")
-
-
-    def __create_camera_panel(self) -> QFrame:
-        panel = QFrame()
-        panel.setObjectName("cameraPanel")
-
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(10)
-
-        self._camera_label = QLabel("카메라 연결을 기다리는 중입니다")
-        self._camera_label.setObjectName("cameraView")
-        self._camera_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self._camera_label.setMinimumSize(640, 360)
-
-        self._status_label = QLabel("준비됨")
-        self._status_label.setObjectName("statusLabel")
-
-        layout.addWidget(self._camera_label, stretch=1)
-        layout.addWidget(self._status_label)
-        return panel
-
-    def __create_side_panel(self) -> QFrame:
-        panel = QFrame()
-        panel.setObjectName("sidePanel")
-        panel.setMinimumWidth(self._layout_settings.get("side_min_width", 340))
-
-        layout = QVBoxLayout(panel)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
-
-        self._notification_list = QListWidget()
-        self._notification_list.setObjectName("notificationList")
-        self._notification_list.setSpacing(8)
-        self._notification_list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self._notification_list.setVerticalScrollMode(
-            QListWidget.ScrollMode.ScrollPerPixel
-        )
-
-        self._start_button = QPushButton(
-            self._layout_settings.get("start_button_text", "시작")
-        )
-        self._start_button.setObjectName("primaryButton")
-        self._start_button.setMinimumHeight(
-            self._layout_settings.get("button_height", 52)
-        )
-        self._start_button.clicked.connect(self.start_requested)
-
-        self._break_button = QPushButton(
-            self._layout_settings.get("break_button_text", "쉬는 시간")
-        )
-        self._break_button.setObjectName("breakButton")
-        self._break_button.setMinimumHeight(
-            self._layout_settings.get("button_height", 52)
-        )
-        self._break_button.clicked.connect(self.break_requested)
-
-        layout.addWidget(self._notification_list, stretch=1)
-        layout.addWidget(self._start_button)
-        layout.addWidget(self._break_button)
-        return panel
+        self.__show_camera_waiting()
 
     def initialize(self) -> None:
         self.show()
+        self.__start_camera()
 
     def add_notification(self, title: str, detail: str = "") -> None:
-        """Insert an animated rectangular notification at the top."""
-        card = NotificationCard(title, detail)
-        target_height = self._layout_settings.get("notification_height", 76)
+        max_count: int = settings_instance.ui_layout["notification_max_count"]
+        if max_count <= 0:
+            return
 
-        item = QListWidgetItem()
-        item.setSizeHint(QSize(0, target_height))
-        self._notification_list.insertItem(0, item)
-        self._notification_list.setItemWidget(item, card)
+        while self.ui.notification_list.count() >= max_count:
+            self.__remove_oldest_notification()
 
-        opacity_effect = QGraphicsOpacityEffect(card)
+        item: QListWidgetItem = QListWidgetItem()
+        card: NotificationCard = NotificationCard()
+        card.set_content(title, detail)
+        target_height: int = settings_instance.ui_layout["notification_height"]
+        item.setSizeHint(QSize(0, 0))
+        self.ui.notification_list.addItem(item)
+        self.ui.notification_list.setItemWidget(item, card)
+
+        opacity_effect: QGraphicsOpacityEffect = QGraphicsOpacityEffect(card)
         opacity_effect.setOpacity(0.0)
         card.setGraphicsEffect(opacity_effect)
-        card.setMaximumHeight(0)
+        duration: int = settings_instance.ui_layout["notification_animation_ms"]
 
-        duration = self._layout_settings.get("notification_animation_ms", 260)
-
-        opacity_animation = QPropertyAnimation(opacity_effect, b"opacity")
+        opacity_animation: QPropertyAnimation = QPropertyAnimation(
+            opacity_effect,
+            b"opacity",
+        )
         opacity_animation.setDuration(duration)
         opacity_animation.setStartValue(0.0)
         opacity_animation.setEndValue(1.0)
         opacity_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
 
-        height_animation = QPropertyAnimation(card, b"maximumHeight")
+        height_animation: QVariantAnimation = QVariantAnimation(self)
         height_animation.setDuration(duration)
         height_animation.setStartValue(0)
         height_animation.setEndValue(target_height)
         height_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        height_animation.valueChanged.connect(
+            lambda value: self.__resize_notification_item(item, int(value))
+        )
 
-        group = QParallelAnimationGroup(self)
+        group: QParallelAnimationGroup = QParallelAnimationGroup(self)
         group.addAnimation(opacity_animation)
         group.addAnimation(height_animation)
-        group.finished.connect(lambda: self.__finish_animation(group, card))
+        group.finished.connect(
+            lambda: self.__finish_animation(group, item, target_height)
+        )
         self._animations.append(group)
+
+        self.ui.notification_list.scrollToBottom()
         group.start()
-
-        max_count = self._layout_settings.get("notification_max_count", 30)
-        while self._notification_list.count() > max_count:
-            self._notification_list.takeItem(self._notification_list.count() - 1)
-
-    def __finish_animation(
-        self,
-        animation: QParallelAnimationGroup,
-        card: NotificationCard,
-    ) -> None:
-        card.setMaximumHeight(16777215)
-        if animation in self._animations:
-            self._animations.remove(animation)
-        animation.deleteLater()
-
-    def __set_camera_pixmap(self, frame) -> None:
-        height, width = frame.shape[:2]
-        bytes_per_line = frame.strides[0]
-
-        if frame.ndim == 2:
-            image_format = QImage.Format.Format_Grayscale8
-        elif frame.shape[2] == 3:
-            image_format = QImage.Format.Format_BGR888
-        elif frame.shape[2] == 4:
-            image_format = QImage.Format.Format_ARGB32
-        else:
-            raise ValueError(f"Unsupported camera frame shape: {frame.shape}")
-
-        image = QImage(
-            frame.data,
-            width,
-            height,
-            bytes_per_line,
-            image_format,
-        )
-        self._pixmap = QPixmap.fromImage(image).scaled(
-            self._camera_label.size(),
-            Qt.AspectRatioMode.KeepAspectRatio,
-            Qt.TransformationMode.SmoothTransformation,
-        )
-        self._camera_label.setPixmap(self._pixmap)
 
     def set_size(self, width: int, height: int) -> None:
         self.resize(width, height)
         settings_instance["window_width"] = width
         settings_instance["window_height"] = height
 
-    def render(self, status: str) -> None:
-        self._status_label.setText(status)
-
-        if self._is_on_break:
-            return
-
-        frame = camera_manager.get_frame(copy=False)
-        if frame is not None:
-            self.__set_camera_pixmap(frame)
+    def render(self) -> None:
+        self.ui.status_label.setText(
+            f"FPS: {timer_manager.fps:.1f} | "
+            f"Frame: {timer_manager.frame_count}"
+        )
 
     def shutdown(self) -> None:
+        camera_manager.stop()
         self.close()
+
+    def __start_camera(self) -> None:
+        camera_manager.set_video_output(self.ui.camera_video)
+        if camera_manager.run():
+            self.ui.camera_stack.setCurrentWidget(self.ui.camera_video_page)
+            return
+
+        self.ui.camera_view.setText(camera_manager.last_error)
+        self.ui.camera_stack.setCurrentWidget(self.ui.camera_placeholder_page)
+
+    def __show_camera_waiting(self) -> None:
+        waiting_text: str = str(self.ui.camera_view.property("waitingText"))
+        self.ui.camera_view.setText(waiting_text)
+        self.ui.camera_stack.setCurrentWidget(self.ui.camera_placeholder_page)
+
+    def __load_stylesheet(self) -> None:
+        stylesheet_path: Path = FunctionLibrary.get_root_path() / UI_STYLE_PATH
+        if stylesheet_path.exists():
+            self.setStyleSheet(stylesheet_path.read_text(encoding="utf-8"))
+
+    def __remove_oldest_notification(self) -> None:
+        oldest_item: QListWidgetItem | None = self.ui.notification_list.item(0)
+        if oldest_item is None:
+            return
+
+        oldest_widget = self.ui.notification_list.itemWidget(oldest_item)
+        self.ui.notification_list.removeItemWidget(oldest_item)
+        removed_item: QListWidgetItem | None = self.ui.notification_list.takeItem(0)
+        if oldest_widget is not None:
+            oldest_widget.deleteLater()
+        del removed_item
+
+    def __finish_animation(self, animation: QParallelAnimationGroup, item: QListWidgetItem, target_height: int) -> None:
+        item.setSizeHint(QSize(0, target_height))
+        self.ui.notification_list.scrollToBottom()
+        if animation in self._animations:
+            self._animations.remove(animation)
+        animation.deleteLater()
+
+    def __resize_notification_item(self, item: QListWidgetItem, height: int) -> None:
+        item.setSizeHint(QSize(0, height))
+        self.ui.notification_list.scrollToBottom()
+
+    def __keep_notification_scroll_at_bottom(self, minimum: int, maximum: int) -> None:
+        self.ui.notification_list.verticalScrollBar().setValue(maximum)

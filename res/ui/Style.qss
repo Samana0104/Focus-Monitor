@@ -1,0 +1,56 @@
+QWidget#mainRoot {
+    background-color: #FFFFFF;
+    color: #191F28;
+    font-family: "Pretendard", "Malgun Gothic", sans-serif;
+    font-size: 14px;
+}
+
+QFrame#cameraPanel, QFrame#sidePanel {
+    background-color: #FFFFFF;
+    border: none;
+}
+
+QLabel#cameraView, QVideoWidget#cameraVideo, QStackedWidget#cameraStack {
+    color: #FFFFFF;
+    background-color: #111827;
+    border: none;
+    border-radius: 16px;
+}
+
+QLabel#statusLabel { color: #6B7684; font-size: 13px; padding: 4px 2px; }
+QListWidget#notificationList {
+    background-color: #F2F4F6;
+    border: 1px solid #E5E8EB;
+    border-radius: 16px;
+    outline: none;
+    padding: 10px;
+}
+
+QListWidget#notificationList::item {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+}
+
+QFrame#notificationCard {
+    background-color: #FFFFFF;
+    border: 1px solid #E5E8EB;
+    border-radius: 14px;
+}
+QLabel#notificationTitle { color: #191F28; font-size: 15px; font-weight: 700; background-color: transparent; border: none; }
+QLabel#notificationDetail { color: #6B7684; font-size: 13px; background-color: transparent; border: none; }
+
+QPushButton {
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 700;
+    padding: 0 16px;
+}
+
+QPushButton#primaryButton { color: #FFFFFF; background-color: #3182F6; }
+QPushButton#primaryButton:hover { background-color: #1B64DA; }
+QPushButton#primaryButton:pressed { background-color: #1554B8; }
+QPushButton#breakButton { color: #3182F6; background-color: #E8F3FF; }
+QPushButton#breakButton:hover { background-color: #D9ECFF; }
+QPushButton#breakButton:pressed { background-color: #C9E2FF; }

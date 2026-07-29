@@ -4,6 +4,7 @@ from enum import Enum, auto
 
 DEBUG = True
 SETTING_PATH = "config/Settings.json"
+UI_STYLE_PATH = "res/ui/Style.qss"
 
 EAR_THRESHOLD = 0.2
 
