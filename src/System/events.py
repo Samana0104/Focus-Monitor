@@ -1,12 +1,6 @@
 from collections import defaultdict
 from typing import Callable
-from enum import Enum, auto
-
-class EventType(Enum):
-    DROWSY_DETECTED    = auto()
-    PHONE_DETECTED     = auto()
-    GAZE_AWAY          = auto()
-    ALERT_CLEARED      = auto()
+from System.define import EventType
 
 class EventBus:
     _instance = None  # Singleton

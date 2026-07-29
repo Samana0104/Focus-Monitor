@@ -1,19 +1,10 @@
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
-
-@dataclass
-class DetectionResult:
-    label: str         
-    confidence: float
-    triggered: bool
-    metadata: dict
+from System.define import DetectionResult
 
 class BaseDetector(ABC):
     @abstractmethod
     def detect(self, frame) -> DetectionResult:
         ...
-
-
 class EyeDetecter(BaseDetecter):
     def __init__(self):
         pass
