@@ -5,6 +5,7 @@
 
 from enum import Enum
 from System.Define import DetectionResult
+from System.FunctionLibrary import FunctionLibrary, LogLevel
 class AlertState(Enum):
     NORMAL  = 0
     WARNING = 1
@@ -33,7 +34,7 @@ class DrowsinessStateMachine:
             self._count += 1
         else:
             if self._state != AlertState.NORMAL:
-                print("ALERT_CLEARED")
+                FunctionLibrary.log("ALERT_CLEARED", LogLevel.WARNING)
             self._state = AlertState.NORMAL
             self._count = 0
             return
@@ -41,5 +42,5 @@ class DrowsinessStateMachine:
         for state, thresh in reversed(self.THRESHOLDS.items()):
             if self._count >= thresh and self._state != state:
                 self._state = state
-                print("DROWSY_DETECTED")
+                FunctionLibrary.log(state.name, LogLevel.WARNING)
                 break
