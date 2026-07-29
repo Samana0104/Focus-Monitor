@@ -1,6 +1,12 @@
+import sys
+from pathlib import Path
 from typing import Any
 from System.Define import LogLevel, TerminalColor, DEBUG
 
+"""
+전역 함수를 포함하는 클래스입니다. 
+인스턴스를 생성할 수 없으며, 모든 메서드는 정적(static) 메서드로 정의되어 있습니다.
+"""
 class FunctionLibrary:
     LOG_LEVEL_COLORS = {
         LogLevel.NONE: TerminalColor.BLACK,
@@ -32,8 +38,27 @@ class FunctionLibrary:
             return
 
         if not isinstance(level, LogLevel):
-            raise TypeError("level must be a LogLevel value")
+            print(f"[{LogLevel.DANGER.name}]{TerminalColor.RED.value}Invalid log level: {level}{TerminalColor.RESET.value}")
 
         color = FunctionLibrary.LOG_LEVEL_COLORS[level].value
         reset = TerminalColor.RESET.value
         print(f"[{level.name}]{color}{message}{reset}")
+
+    def get_root_path() -> Path:
+        """
+            프로젝트 루트 경로를 반환합니다.
+            소스 모드에서는 프로젝트 루트 경로를 반환하고,
+            EXE 모드에서는 실행 파일이 위치한 디렉토리 경로를 반환
+        """
+        if getattr(sys, "frozen", False):
+            return Path(sys.executable).resolve().parent
+
+        return Path(__file__).resolve().parents[2]
+
+    def get_root_path_str() -> str:
+        """
+            프로젝트 루트 경로를 문자열로 반환합니다.
+            소스 모드에서는 프로젝트 루트 경로를 반환하고,
+            EXE 모드에서는 실행 파일이 위치한 디렉토리 경로를 반환
+        """
+        return str(FunctionLibrary.get_root_path())

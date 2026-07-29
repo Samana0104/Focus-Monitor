@@ -3,7 +3,7 @@ from enum import Enum, auto
 
 
 DEBUG = True
-
+SETTING_PATH = "config/Settings.json"
 
 EAR_THRESHOLD = 0.2
 

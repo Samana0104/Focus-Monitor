@@ -1,6 +1,8 @@
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QMainWindow, QVBoxLayout, QWidget
 
+from Singleton.Settings import settings_instance 
+
 
 class UIHandler(QMainWindow):
     """Own and update the application's main window."""
@@ -8,7 +10,8 @@ class UIHandler(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.setWindowTitle("OnDevice AI")
+        self.setWindowTitle(f"{settings_instance['window_title']}")
+
         self.resize(960, 640)
 
         self._status_label = QLabel("Ready")
