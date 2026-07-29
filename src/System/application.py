@@ -1,22 +1,23 @@
+import System
 from time import monotonic, sleep
 class Application:
     def __init__(self, target_fps: float = 30.0):
         self._running = False
         self._frame_interval = 1.0 / target_fps if target_fps > 0 else 0.0
 
-    def initialize(self) -> None:
+    def __initialize(self) -> None:
         """프로그램 시작 시 한 번 실행."""
         pass
 
-    def process_input(self) -> None:
+    def __input(self) -> None:
         """매 프레임 입력 처리."""
         pass
 
-    def update(self) -> None:
+    def __update(self) -> None:
         """매 프레임 로직 처리."""
         pass
 
-    def render(self) -> None:
+    def __render(self) -> None:
         """매 프레임 화면 출력."""
         pass
 
@@ -25,16 +26,18 @@ class Application:
         pass
 
     def run(self) -> None:
-        self.initialize()
+        System.FunctionLibrary.log("Application is starting...", System.LogLevel.NONE)
+
         self._running = True
+        self.__initialize()
 
         try:
             while self._running:
                 frame_started_at = monotonic()
 
-                self.process_input()
-                self.update()
-                self.render()
+                self.__input()
+                self.__update()
+                self.__render()
 
                 elapsed = monotonic() - frame_started_at
                 remaining = self._frame_interval - elapsed
