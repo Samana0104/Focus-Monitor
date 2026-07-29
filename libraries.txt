@@ -1,0 +1,9 @@
+# Add one pip package per line.
+# Version constraints are supported, for example:
+# numpy==2.0.1
+# opencv-python>=4.10
+
+numpy
+pandas
+opencv-python
+
