@@ -7,6 +7,9 @@ from System.FunctionLibrary import FunctionLibrary
 from Singleton.Settings import settings_instance
 from UI.UIHandler import UIHandler
 
+from Camera import CameraWorker
+from AI.Detector import DetectionPipeline
+from System.StateMachine import DrowsinessStateMachine
 
 class Application:
     def __init__(self):
@@ -19,6 +22,8 @@ class Application:
         self._timer.timeout.connect(self._tick)
         self._qt_app.lastWindowClosed.connect(self.stop)
 
+        self._camera_worker = CameraWorker(DetectionPipeline(), DrowsinessStateMachine())
+
     @property
     def is_running(self) -> bool:
         return self._running
@@ -29,6 +34,7 @@ class Application:
         System.FunctionLibrary.log("Application is starting...", System.LogLevel.NONE)
         settings_instance.load()
         self._ui.initialize()
+        self._camera_worker.run()
 
     def process_input(self) -> None:
         """Process input once per frame."""
