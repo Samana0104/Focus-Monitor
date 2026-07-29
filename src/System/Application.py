@@ -1,5 +1,6 @@
 import sys
 import System
+from time import monotonic
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
@@ -7,26 +8,38 @@ from System.FunctionLibrary import FunctionLibrary
 from Singleton.Settings import settings_instance
 from UI.UIHandler import UIHandler
 
-from Camera import CameraWorker
-from AI.Detector import DetectionPipeline
-from System.StateMachine import DrowsinessStateMachine
+from Singleton.Camera import camera_manager
 
 class Application:
     def __init__(self):
-        self._running = False
-        self._frame_count = 0
-        self._qt_app = QApplication.instance() or QApplication(sys.argv)
-        self._ui = UIHandler()
+        self._running : bool = False
+        self._frame_count : int = 0
+        self._delta_time : float = 0.0
+        self._current_fps : float = 0.0
+        self._last_tick_time : float = 0.0
+        self._qt_app : QApplication = QApplication(sys.argv)
+        self._ui : UIHandler = UIHandler()
 
         self._timer = QTimer()
-        self._timer.timeout.connect(self._tick)
+        self._timer.timeout.connect(self.__tick)
         self._qt_app.lastWindowClosed.connect(self.stop)
 
-        self._camera_worker = CameraWorker(DetectionPipeline(), DrowsinessStateMachine())
 
     @property
     def is_running(self) -> bool:
         return self._running
+
+    @property
+    def delta_time(self) -> float:
+        return self._delta_time
+
+    @property
+    def fps(self) -> float:
+        return self._current_fps
+
+    @property
+    def frame_count(self) -> int:
+        return self._frame_count
 
     def initialize(self) -> None:
         """Initialize and show application resources once."""
@@ -34,49 +47,62 @@ class Application:
         System.FunctionLibrary.log("Application is starting...", System.LogLevel.NONE)
         settings_instance.load()
         self._ui.initialize()
-        self._camera_worker.run()
 
-    def process_input(self) -> None:
-        """Process input once per frame."""
-        pass
-
-    def update(self) -> None:
-        """Update application logic once per frame."""
+    def __update(self, delta_time: float) -> None:
+        camera_manager.update()
         self._frame_count += 1
 
-    def render(self) -> None:
+    def __render(self) -> None:
+        pass
+        self._ui.render(f"FPS: {self._current_fps:.2f}, Frame Count: {self._frame_count}")
         """Send the latest state to the UI once per frame."""
-        self._ui.render(f"Running - frame {self._frame_count}")
 
     def shutdown(self) -> None:
         """Release UI resources once."""
         self._timer.stop()
+        camera_manager.stop()
         self._ui.shutdown()
 
-    def _tick(self) -> None:
+    def __tick(self) -> None:
         if not self._running:
             return
 
+        current_time = monotonic()
+        raw_delta = current_time - self._last_tick_time
+        self._last_tick_time = current_time
+
+        # 0이 되는 경우를 방지하기 위해 최소값을 설정합니다
+        self._delta_time = max(raw_delta, 1e-6)
+
+        if self._delta_time > 0:
+            self._current_fps = 1.0 / self._delta_time
+
+        FunctionLibrary.log(f"Frame {self._frame_count} processed in {self._current_fps:.1f} seconds.", System.LogLevel.NONE)
+
         try:
-            self.process_input()
-            self.update()
-            self.render()
+            self.__update(self._delta_time)
+            self.__render()
         except Exception:
             self.stop()
             raise
+
 
     def run(self) -> int:
         """Start the Qt event loop and block until the application stops."""
         if self._running:
             FunctionLibrary.log("Application is already running.", System.LogLevel.WARNING)
-            self.shutdown()
+            return
 
         self.initialize()
         self._running = True
+        self._last_tick_time = monotonic()
+
         self._timer.start()
 
         try:
             return self._qt_app.exec()
+        except Exception as e:
+            FunctionLibrary.log(f"An error occurred during application execution: {e}", System.LogLevel.DANGER)
         finally:
             self._running = False
             self.shutdown()

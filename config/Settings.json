@@ -1,6 +1,18 @@
 {
-    "window_title": "이름 뭘로 하지",
-    "camera_index": 0,
-    "window_width": 960,
-    "window_height": 640
+    "window_title": "OnDevice AI",
+    "window_width": 1440,
+    "window_height": 900,
+    "target_fps": 30,
+    "ui_layout": {
+        "window_margin": 16,
+        "panel_spacing": 16,
+        "button_height": 52,
+        "side_min_width": 340,
+        "notification_height": 76,
+        "notification_animation_ms": 260,
+        "notification_max_count": 30,
+        "start_button_text": "시작",
+        "break_button_text": "쉬는 시간"
+    },
+    "ui_stylesheet": "QWidget#mainRoot { background-color: #FFFFFF; color: #191F28; font-family: 'Pretendard', 'Malgun Gothic', sans-serif; font-size: 14px; } QFrame#cameraPanel, QFrame#sidePanel { background-color: #FFFFFF; border: none; } QLabel#cameraView { color: #FFFFFF; background-color: #111827; border: none; border-radius: 16px; } QLabel#statusLabel { color: #6B7684; font-size: 13px; padding: 4px 2px; } QListWidget#notificationList { background-color: #FFFFFF; border: none; outline: none; } QListWidget#notificationList::item { background-color: transparent; border: none; padding: 0; } QFrame#notificationCard { background-color: #F7F8FA; border: 1px solid #E5E8EB; border-radius: 14px; } QLabel#notificationTitle { color: #191F28; font-size: 15px; font-weight: 700; background-color: transparent; border: none; } QLabel#notificationDetail { color: #6B7684; font-size: 13px; background-color: transparent; border: none; } QPushButton { border: none; border-radius: 12px; font-size: 15px; font-weight: 700; padding: 0 16px; } QPushButton#primaryButton { color: #FFFFFF; background-color: #3182F6; } QPushButton#primaryButton:hover { background-color: #1B64DA; } QPushButton#primaryButton:pressed { background-color: #1554B8; } QPushButton#breakButton { color: #3182F6; background-color: #E8F3FF; } QPushButton#breakButton:hover { background-color: #D9ECFF; } QPushButton#breakButton:pressed { background-color: #C9E2FF; }"
 }
