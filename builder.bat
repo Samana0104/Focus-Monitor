@@ -68,6 +68,15 @@ if errorlevel 1 (
 
 echo [COPY] Copying external resources...
 
+if exist "%PROJECT_DIR%config" (
+    xcopy "%PROJECT_DIR%config" "%OUTPUT_DIR%\config\" /E /I /Y >nul
+    if errorlevel 1 (
+        echo [ERROR] Failed to copy the config directory.
+        pause
+        exit /b 1
+    )
+)
+
 if exist "%PROJECT_DIR%res" (
     xcopy "%PROJECT_DIR%res" "%OUTPUT_DIR%\res\" /E /I /Y >nul
     if errorlevel 1 (
