@@ -6,4 +6,6 @@
 numpy
 pandas
 opencv-python
+dataclasses
+mediapipe
 pyside6

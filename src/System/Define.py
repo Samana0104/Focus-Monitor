@@ -5,6 +5,8 @@ from enum import Enum, auto
 DEBUG = True
 
 
+EAR_THRESHOLD = 0.2
+
 class LogLevel(Enum):
     NONE = "None"
     WARNING = "Warning"
