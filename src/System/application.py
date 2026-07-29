@@ -1,44 +1,48 @@
-from time import monotonic
-import cv2
-
+from time import monotonic, sleep
 class Application:
     def __init__(self, target_fps: float = 30.0):
-        if target_fps < 0:
-            raise ValueError("target_fps must be zero or greater")
-
-        self._frame_interval = 1.0 / target_fps if target_fps else 0.0
         self._running = False
+        self._frame_interval = 1.0 / target_fps if target_fps > 0 else 0.0
 
-    @property
-    def is_running(self) -> bool:
-        return self._running
+    def initialize(self) -> None:
+        """프로그램 시작 시 한 번 실행."""
+        pass
+
+    def process_input(self) -> None:
+        """매 프레임 입력 처리."""
+        pass
+
+    def update(self) -> None:
+        """매 프레임 로직 처리."""
+        pass
+
+    def render(self) -> None:
+        """매 프레임 화면 출력."""
+        pass
+
+    def shutdown(self) -> None:
+        """프로그램 종료 시 한 번 실행."""
+        pass
 
     def run(self) -> None:
-        if self._running:
-            raise RuntimeError("Application is already running")
-
-        self._capture = cv2.VideoCapture(0)
+        self.initialize()
         self._running = True
 
-        # try:
-        #     while not self._stop_event.is_set():
-        #         frame_started_at = monotonic()
-        #         captured, frame = self._capture.read()
+        try:
+            while self._running:
+                frame_started_at = monotonic()
 
-        #         if not captured:
-        #             raise RuntimeError("Failed to capture a frame from the camera")
+                self.process_input()
+                self.update()
+                self.render()
 
-        #         results = self._pipeline.run(frame)
-        #         self._state_machine.update(results)
+                elapsed = monotonic() - frame_started_at
+                remaining = self._frame_interval - elapsed
 
-        #         remaining = self._frame_interval - (monotonic() - frame_started_at)
-        #         if remaining > 0:
-        #             self._stop_event.wait(remaining)
-        # finally:
-        #     self._running = False
-        #     if self._capture is not None:
-        #         self._capture.release()
-        #         self._capture = None
+                if remaining > 0:
+                    sleep(remaining)
+        finally:
+            self.shutdown()
 
     def stop(self) -> None:
-        pass
+        self._running = False
