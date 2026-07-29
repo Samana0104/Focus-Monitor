@@ -6,4 +6,4 @@
 numpy
 pandas
 opencv-python
-
+pyside6
