@@ -1,5 +1,6 @@
 from collections import defaultdict
 from typing import Callable
+
 from System.define import EventType
 
 class EventBus:

@@ -4,6 +4,7 @@
 # ===================================================================================
 
 from enum import Enum
+from System.define import DetectionResult
 
 class AlertState(Enum):
     NORMAL  = 0

@@ -1,3 +1,7 @@
+from AI.detector import BaseDetector
+from System.define import DetectionResult
+
+
 class DetectionPipeline:
     def __init__(self, detectors: list[BaseDetector]):
         self._detectors = detectors

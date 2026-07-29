@@ -5,21 +5,21 @@ class BaseDetector(ABC):
     @abstractmethod
     def detect(self, frame) -> DetectionResult:
         ...
-class EyeDetecter(BaseDetecter):
+class EyeDetecter(BaseDetector):
     def __init__(self):
         pass
 
     def detect(self, frame) -> DetectionResult:
         pass
 
-class GazeDetecter(BaseDetecter):
+class GazeDetecter(BaseDetector):
     def __init__(self):
         pass
 
     def detect(self, frame) -> DetectionResult:
         pass
 
-class PhoneDetecter(BaseDetecter):
+class PhoneDetecter(BaseDetector):
     def __init__(self):
         pass
 
