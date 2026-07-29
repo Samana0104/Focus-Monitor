@@ -6,7 +6,6 @@ from System.FunctionLibrary import FunctionLibrary
 
 from System import (
     Define,
-    Events,
     StateMachine,
 )
 
@@ -16,7 +15,6 @@ __all__ = [
     "LogLevel",
     "FunctionLibrary",
     "Define",
-    "Events",
     "StateMachine",
 ]
 

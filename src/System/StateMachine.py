@@ -5,7 +5,6 @@
 
 from enum import Enum
 from System.Define import DetectionResult
-from System.Define import EventType
 class AlertState(Enum):
     NORMAL  = 0
     WARNING = 1

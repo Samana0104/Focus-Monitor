@@ -21,11 +21,11 @@ class TerminalColor(Enum):
     RESET = "\033[0m"
 
 
-class EventType(Enum):
-    DROWSY_DETECTED = auto()
-    PHONE_DETECTED = auto()
-    GAZE_AWAY = auto()
-    ALERT_CLEARED = auto()
+class EventKey(Enum):
+    DROWSY_DETECTED : str = "DROWSY_DETECTED"
+    PHONE_DETECTED : str = "PHONE_DETECTED"
+    GAZE_AWAY : str = "GAZE_AWAY"
+    ALERT_CLEARED : str = "ALERT_CLEARED"
 
 
 @dataclass
