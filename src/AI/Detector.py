@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
-from System.define import DetectionResult, EAR_THRESHOLD
+from System.Define import DetectionResult, EAR_THRESHOLD
 
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import cv2  
+
+from pathlib import Path
 
 class BaseDetector(ABC):
     @abstractmethod
@@ -15,8 +17,8 @@ class DetectionPipeline:
     def __init__(self):
         self._detectors = [
             EyeDetecter(),
-            GazeDetecter(),
-            PhoneDetecter(),
+            #GazeDetecter(),
+            #PhoneDetecter(),
         ]
 
     def run(self, frame) -> list[DetectionResult]:
@@ -27,7 +29,8 @@ class DetectionPipeline:
 
 class EyeDetecter(BaseDetector):
     def __init__(self):
-        base_options = python.BaseOptions(model_asset_path='face_landmarker_v2_with_blendshapes.task')
+        model_path = str(Path(__file__).parent / "face_landmarker_v2_with_blendshapes.task")
+        base_options = python.BaseOptions(model_asset_path=model_path)
         options = vision.FaceLandmarkerOptions(base_options=base_options,
                                             output_face_blendshapes=True,
                                             output_facial_transformation_matrixes=True,
