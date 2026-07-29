@@ -1,5 +1,5 @@
 from typing import Any
-from System.define import LogLevel, TerminalColor, DEBUG
+from System.Define import LogLevel, TerminalColor, DEBUG
 
 class FunctionLibrary:
     LOG_LEVEL_COLORS = {

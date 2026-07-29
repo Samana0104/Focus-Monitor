@@ -1,10 +1,11 @@
 from collections import defaultdict
 from typing import Callable
 
-from System.define import EventType
+from System.Define import EventType
+
 
 class EventBus:
-    _instance = None  # Singleton
+    _instance = None
 
     def __new__(cls):
         if cls._instance is None:

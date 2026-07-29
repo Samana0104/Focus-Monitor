@@ -21,20 +21,20 @@
 │   └───conf/                 # 설정 파일 저장
 └───src/                      # 소스 코드
     ├───__init__.py
-    ├───camera.py             # 웹캠 영상 스트림 처리 및 관리
-    ├───main.py               # 애플리케이션의 메인 진입점 및 전체 흐름 제어
+    ├───Camera.py             # 웹캠 영상 스트림 처리 및 관리
+    ├───Main.py               # 애플리케이션의 메인 진입점 및 전체 흐름 제어
     ├───AI/                   # AI 모델 및 관련 로직
     │   ├───__init__.py
-    │   └───detector.py       # 딴짓 감지 AI 모델 구현 및 추론
+    │   └───Detector.py       # 딴짓 감지 AI 모델 구현 및 추론
     ├───Socket/               # 네트워크 통신 및 외부 서비스 연동
     │   ├───__init__.py
     │   └───SlackHandler.py   # 슬랙(Slack) API 연동 및 알림 메시지 전송
     ├───System/               # 시스템 전반적인 로직 및 상태 관리
     │   ├───__init__.py
-    │   ├───define.py         # 상수, 전역 변수 및 시스템 정의
-    │   ├───events.py         # 시스템 이벤트 관리 및 발행
+    │   ├───Define.py         # 상수, 전역 변수 및 시스템 정의
+    │   ├───Events.py         # 시스템 이벤트 관리 및 발행
     │   ├───pipeline.py       # 데이터 처리 파이프라인 구성 및 관리
-    │   └───state_machine.py  # 애플리케이션 상태 머신 구현
+    │   └───StateMachine.py   # 애플리케이션 상태 머신 구현
     └───UI/                   # 사용자 인터페이스 (User Interface)
         ├───__init__.py
         └───UIHandler.py      # 사용자 인터페이스 요소 및 이벤트 처리

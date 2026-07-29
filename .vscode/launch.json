@@ -5,7 +5,7 @@
             "name": "Run OnDevice AI",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/src/main.py",
+            "program": "${workspaceFolder}/src/Main.py",
             "cwd": "${workspaceFolder}/src",
             "console": "integratedTerminal",
             "justMyCode": true
