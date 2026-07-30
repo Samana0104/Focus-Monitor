@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from enum import Enum, auto
 
 
@@ -28,9 +27,10 @@ class EventKey(Enum):
     ALERT_CLEARED : str = "ALERT_CLEARED"
 
 
-@dataclass
 class DetectionResult:
-    label: str
-    confidence: float
-    triggered: bool
-    metadata: dict
+    """Result returned by one detector for one camera frame."""
+
+    def __init__(self, label, triggered, metadata):
+        self.label = label
+        self.triggered = triggered
+        self.metadata = metadata

@@ -36,7 +36,6 @@ class EyeDetecter(BaseDetector):
                                             output_facial_transformation_matrixes=True,
                                             num_faces=1)
         self._detector = vision.FaceLandmarker.create_from_options(options)
-        self.ear = 0.0
 
     def length(self, p1, p2):
         return ((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2) ** 0.5
@@ -58,16 +57,15 @@ class EyeDetecter(BaseDetector):
         """
         Take a frame and decide if the eyes are closed.
         """
-        label = "eyes_opened"
-        confidence = 1.0
+        label = "eyes_closed"
         triggered = False
-        metadata = {}
+        metadata = {"ear": 0.0}
 
         img = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img)
 
         detection_result = self._detector.detect(image)
-        if detection_result:
+        if detection_result.face_landmarks:
             landmarks = detection_result.face_landmarks[0]
 
             left_eye_indices = [362, 385, 387, 263, 373, 380]
@@ -75,15 +73,13 @@ class EyeDetecter(BaseDetector):
 
             left_ear = self.calculate_ear(landmarks, left_eye_indices)
             right_ear = self.calculate_ear(landmarks, right_eye_indices)
-            self.ear = (left_ear + right_ear) / 2.0
+            ear = (left_ear + right_ear) / 2.0
+            metadata["ear"] = ear
 
-            if self.ear < EAR_THRESHOLD:
-                label = "eyes_closed"
+            if ear < EAR_THRESHOLD:
                 triggered = True
-                metadata["ear"] = self.ear
 
-        return DetectionResult(label, confidence, triggered, metadata)
-
+        return DetectionResult(label, triggered, metadata)
 
 class GazeDetecter(BaseDetector):
     def __init__(self):
