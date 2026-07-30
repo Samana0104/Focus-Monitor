@@ -7,6 +7,7 @@ UI_STYLE_PATH = "res/ui/Style.qss"
 
 EAR_THRESHOLD = 0.2
 SIMILARITY_THRESHOLD = 0.65
+PHONE_FACE_DISTANCE_THRESHOLD = 2.5
 
 
 class LogLevel(Enum):

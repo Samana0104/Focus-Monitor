@@ -3,6 +3,7 @@ from System.Define import (
     DetectionResult,
     EAR_THRESHOLD,
     SIMILARITY_THRESHOLD,
+    CELL_PHONE_CLASS,
     PHONE_FACE_DISTANCE_THRESHOLD,
 )
 
@@ -14,6 +15,8 @@ from pathlib import Path
 
 import numpy as np
 from insightface.app import FaceAnalysis
+
+from ultralytics import YOLO
 
 class BaseDetector(ABC):
     @abstractmethod
@@ -178,11 +181,46 @@ class AbsenceDetecter(BaseDetector):
 
         return DetectionResult(label, triggered, metadata)
 
-        
-
 class PhoneDetecter(BaseDetector):
     def __init__(self):
-        pass
+        self._model = YOLO("yolov11n.pt")
 
-    def detect(self, frame) -> DetectionResult:
-        pass
+    def detect(self, frame, face_bbox=None) -> DetectionResult:
+        label = "phone_detected"
+        triggered = False
+        metadata = {"confidence": 0.0, "norm_distance": 0.0}
+
+        if face_bbox is None:
+            return DetectionResult(label, triggered, metadata)
+
+        results = self._model(frame)
+
+        face_x1, face_y1, face_x2, face_y2 = [float(value) for value in face_bbox]
+        face_x = (face_x1 + face_x2) / 2.0
+        face_y = (face_y1 + face_y2) / 2.0
+        face_width = face_x2 - face_x1
+        if face_width <= 0:
+            return DetectionResult(label, triggered, metadata)
+
+        closest_distance = None
+        for result in results:
+            if result.boxes is None:
+                continue
+            for box in result.boxes:
+                if int(box.cls[0].item()) != CELL_PHONE_CLASS:
+                    continue
+
+                phone_x1, phone_y1, phone_x2, phone_y2 = box.xyxy[0].tolist()
+                phone_x = (phone_x1 + phone_x2) / 2.0
+                phone_y = (phone_y1 + phone_y2) / 2.0
+                distance = ((phone_x - face_x) ** 2 + (phone_y - face_y) ** 2) ** 0.5
+                normalized_distance = distance / face_width
+
+                if closest_distance is None or normalized_distance < closest_distance:
+                    closest_distance = normalized_distance
+
+        metadata["norm_distance"] = closest_distance
+        if closest_distance is not None:
+            triggered = closest_distance < PHONE_FACE_DISTANCE_THRESHOLD
+
+        return DetectionResult(label, triggered, metadata)

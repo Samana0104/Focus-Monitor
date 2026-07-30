@@ -10,4 +10,5 @@ mediapipe
 pyside6
 onnxruntime
 insightface
+ultralytics
 pytest
