@@ -6,7 +6,7 @@ from PySide6.QtCore import (
     Qt,
     QVariantAnimation,
 )
-from PySide6.QtGui import QKeyEvent
+from PySide6.QtGui import QIcon, QKeyEvent
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
@@ -20,6 +20,7 @@ from Singleton.Camera import camera_manager
 from Singleton.Settings import settings_instance
 from Singleton.Timer import timer_manager
 from System.FunctionLibrary import FunctionLibrary
+from UI.UISettingsDialog import UISettingsDialog
 from UI.UIMainWindow import UIMainWindow
 
 
@@ -63,6 +64,7 @@ class UIHandler(QMainWindow):
         self._animations: list[QParallelAnimationGroup] = []
         self._is_on_break: bool = False
         self._notification_requested: bool = False
+        self._ui_settings_dialog: UISettingsDialog = UISettingsDialog(self)
 
         self.setWindowTitle(settings_instance["window_title"])
         self.resize(
@@ -74,9 +76,11 @@ class UIHandler(QMainWindow):
         )
         self.ui.start_button.clicked.connect(self.start_requested)
         self.ui.break_button.clicked.connect(self.break_requested)
+        self.ui.settings_button.clicked.connect(self.open_settings)
         self.ui.notification_list.verticalScrollBar().rangeChanged.connect(
             self.__keep_notification_scroll_at_bottom
         )
+        self.__load_icons()
         self.__load_stylesheet()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
@@ -101,6 +105,14 @@ class UIHandler(QMainWindow):
         self._is_on_break = True
         camera_manager.stop()
         self.__show_camera_waiting()
+
+    def open_settings(self, checked: bool = False) -> None:
+        self._ui_settings_dialog.show()
+        dialog_geometry = self._ui_settings_dialog.frameGeometry()
+        dialog_geometry.moveCenter(self.frameGeometry().center())
+        self._ui_settings_dialog.move(dialog_geometry.topLeft())
+        self._ui_settings_dialog.raise_()
+        self._ui_settings_dialog.activateWindow()
 
     def initialize(self) -> None:
         self.show()
@@ -189,6 +201,10 @@ class UIHandler(QMainWindow):
         stylesheet_path = FunctionLibrary.get_ui_path() / "Style.qss"
         if stylesheet_path.exists():
             self.setStyleSheet(stylesheet_path.read_text(encoding="utf-8"))
+
+    def __load_icons(self) -> None:
+        self.ui.report_button.setIcon(QIcon(str(FunctionLibrary.get_ui_path() / "report_icon.png")))
+        self.ui.settings_button.setIcon(QIcon(str(FunctionLibrary.get_ui_path() / "setting_icon.png")))
 
     def __remove_oldest_notification(self) -> None:
         oldest_item: QListWidgetItem | None = self.ui.notification_list.item(0)

@@ -10,11 +10,15 @@ QFrame#cameraPanel, QFrame#sidePanel {
     border: none;
 }
 
+QFrame#sidePanel { min-width: 340px; }
+
 QLabel#cameraView, QVideoWidget#cameraVideo, QStackedWidget#cameraStack {
     color: #FFFFFF;
     background-color: #111827;
     border: none;
     border-radius: 16px;
+    min-width: 640px;
+    min-height: 360px;
 }
 
 QLabel#statusLabel { color: #6B7684; font-size: 13px; padding: 4px 2px; }
@@ -48,9 +52,95 @@ QPushButton {
     padding: 0 16px;
 }
 
-QPushButton#primaryButton { color: #FFFFFF; background-color: #3182F6; }
+QPushButton#primaryButton { color: #FFFFFF; background-color: #3182F6; min-height: 52px; }
 QPushButton#primaryButton:hover { background-color: #1B64DA; }
 QPushButton#primaryButton:pressed { background-color: #1554B8; }
-QPushButton#breakButton { color: #3182F6; background-color: #E8F3FF; }
+QPushButton#breakButton { color: #3182F6; background-color: #E8F3FF; min-height: 52px; }
 QPushButton#breakButton:hover { background-color: #D9ECFF; }
 QPushButton#breakButton:pressed { background-color: #C9E2FF; }
+
+QPushButton#utilityButton {
+    background-color: transparent;
+    border: none;
+    border-radius: 10px;
+    min-width: 32px;
+    max-width: 32px;
+    min-height: 32px;
+    max-height: 32px;
+    padding: 0;
+    qproperty-iconSize: 20px 20px;
+}
+QPushButton#utilityButton:hover { background-color: #F2F4F6; }
+QPushButton#utilityButton:pressed { background-color: #E5E8EB; }
+
+QDialog#uiSettingsDialog {
+    background-color: #F9FAFB;
+    color: #191F28;
+    min-width: 480px;
+    max-width: 480px;
+    min-height: 640px;
+    max-height: 640px;
+}
+
+QGroupBox#aiParameterGroup {
+    color: #333D4B;
+    background-color: #FFFFFF;
+    border: 1px solid #E5E8EB;
+    border-radius: 16px;
+    margin-top: 14px;
+    font-size: 16px;
+    font-weight: 700;
+}
+
+QGroupBox#aiParameterGroup::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    left: 16px;
+    padding: 0 8px;
+    background-color: #F9FAFB;
+}
+
+QFrame#parameterRow { background-color: transparent; border: none; }
+QLabel#parameterTitle { color: #333D4B; font-size: 14px; font-weight: 700; }
+QLabel#parameterDescription { color: #8B95A1; font-size: 12px; font-weight: 400; }
+QSlider#parameterSlider { min-height: 24px; }
+QLabel#parameterValue {
+    color: #3182F6;
+    background-color: #E8F3FF;
+    border-radius: 8px;
+    min-width: 42px;
+    padding: 4px 8px;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+QSlider#parameterSlider::groove:horizontal {
+    height: 4px;
+    background-color: #E5E8EB;
+    border-radius: 2px;
+}
+
+QSlider#parameterSlider::sub-page:horizontal {
+    background-color: #3182F6;
+    border-radius: 2px;
+}
+
+QSlider#parameterSlider::handle:horizontal {
+    width: 16px;
+    height: 16px;
+    margin: -7px 0;
+    background-color: #FFFFFF;
+    border: 2px solid #3182F6;
+    border-radius: 9px;
+}
+
+QSlider#parameterSlider::handle:horizontal:hover { background-color: #E8F3FF; }
+
+QPushButton#settingsDoneButton {
+    color: #FFFFFF;
+    background-color: #3182F6;
+    border-radius: 12px;
+    min-height: 48px;
+}
+QPushButton#settingsDoneButton:hover { background-color: #1B64DA; }
+QPushButton#settingsDoneButton:pressed { background-color: #1554B8; }

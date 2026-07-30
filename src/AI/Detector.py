@@ -37,7 +37,6 @@ class DetectionPipeline:
 
 class EyeDetecter(BaseDetector):
     def __init__(self):
-        self._ear_threshold = float(settings_instance.ai_params["ear_threshold"])
         model_path = FunctionLibrary.get_ai_path() / "face_landmarker_v2_with_blendshapes.task"
         base_options = python.BaseOptions(model_asset_path=str(model_path))
         options = vision.FaceLandmarkerOptions(base_options=base_options,
@@ -98,14 +97,13 @@ class EyeDetecter(BaseDetector):
             ear = (left_ear + right_ear) / 2.0
             metadata["ear"] = ear
 
-            if ear < self._ear_threshold:
+            if ear < float(settings_instance.ai_params["ear_threshold"]):
                 triggered = True
 
         return DetectionResult(label, triggered, metadata)
 
 class AbsenceDetecter(BaseDetector):
     def __init__(self):
-        self._similarity_threshold = float(settings_instance.ai_params["similarity_threshold"])
         self._known_emb = None
         self.face_bbox = None
         self.face_embedding = None
@@ -166,7 +164,7 @@ class AbsenceDetecter(BaseDetector):
             self.face_bbox = bbox
             similarity = self.cosine_similarity(self._known_emb, test_emb)
             metadata["similarity"] = similarity
-            if similarity > self._similarity_threshold:
+            if similarity > float(settings_instance.ai_params["similarity_threshold"]):
                 triggered = False
             else:
                 triggered = True
@@ -179,8 +177,6 @@ class AbsenceDetecter(BaseDetector):
 
 class PhoneDetecter(BaseDetector):
     def __init__(self):
-        self._cell_phone_class = int(settings_instance.ai_params["cell_phone_class"])
-        self._face_distance_threshold = float(settings_instance.ai_params["phone_face_distance_threshold"])
         self._model = YOLO("yolov11n.pt")
 
     def detect(self, frame, face_bbox=None) -> DetectionResult:
@@ -205,7 +201,7 @@ class PhoneDetecter(BaseDetector):
             if result.boxes is None:
                 continue
             for box in result.boxes:
-                if int(box.cls[0].item()) != self._cell_phone_class:
+                if int(box.cls[0].item()) != int(settings_instance.ai_params["cell_phone_class"]):
                     continue
 
                 phone_x1, phone_y1, phone_x2, phone_y2 = box.xyxy[0].tolist()
@@ -219,6 +215,6 @@ class PhoneDetecter(BaseDetector):
 
         metadata["norm_distance"] = closest_distance
         if closest_distance is not None:
-            triggered = closest_distance < self._face_distance_threshold
+            triggered = closest_distance < float(settings_instance.ai_params["phone_face_distance_threshold"])
 
         return DetectionResult(label, triggered, metadata)

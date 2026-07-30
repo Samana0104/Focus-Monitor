@@ -1,4 +1,4 @@
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtMultimediaWidgets import QVideoWidget
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -31,6 +31,9 @@ class UIMainWindow:
         self.status_label: QLabel
         self.side_panel: QFrame
         self.side_layout: QVBoxLayout
+        self.utility_layout: QHBoxLayout
+        self.report_button: QPushButton
+        self.settings_button: QPushButton
         self.notification_list: QListWidget
         self.start_button: QPushButton
         self.break_button: QPushButton
@@ -71,7 +74,6 @@ class UIMainWindow:
         placeholder_layout.setContentsMargins(0, 0, 0, 0)
         self.camera_view = QLabel("카메라 연결을 기다리는 중입니다")
         self.camera_view.setObjectName("cameraView")
-        self.camera_view.setMinimumSize(QSize(640, 360))
         self.camera_view.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.camera_view.setProperty(
             "waitingText",
@@ -85,7 +87,6 @@ class UIMainWindow:
         video_layout.setContentsMargins(0, 0, 0, 0)
         self.camera_video = QVideoWidget(self.camera_video_page)
         self.camera_video.setObjectName("cameraVideo")
-        self.camera_video.setMinimumSize(QSize(640, 360))
         video_layout.addWidget(self.camera_video)
         self.camera_stack.addWidget(self.camera_video_page)
 
@@ -97,11 +98,28 @@ class UIMainWindow:
     def __setup_side_panel(self) -> None:
         self.side_panel = QFrame(self.main_root)
         self.side_panel.setObjectName("sidePanel")
-        self.side_panel.setMinimumWidth(340)
         self.side_panel.setFrameShape(QFrame.Shape.NoFrame)
         self.side_layout = QVBoxLayout(self.side_panel)
         self.side_layout.setContentsMargins(0, 0, 0, 0)
         self.side_layout.setSpacing(12)
+
+        self.utility_layout = QHBoxLayout()
+        self.utility_layout.setContentsMargins(0, 0, 0, 0)
+        self.utility_layout.setSpacing(6)
+        self.utility_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+        self.report_button = QPushButton(self.side_panel)
+        self.report_button.setObjectName("utilityButton")
+        self.report_button.setToolTip("리포트")
+        self.report_button.setAccessibleName("리포트")
+
+        self.settings_button = QPushButton(self.side_panel)
+        self.settings_button.setObjectName("utilityButton")
+        self.settings_button.setToolTip("설정")
+        self.settings_button.setAccessibleName("설정")
+
+        self.utility_layout.addWidget(self.report_button, alignment=Qt.AlignmentFlag.AlignRight)
+        self.utility_layout.addWidget(self.settings_button, alignment=Qt.AlignmentFlag.AlignRight)
 
         self.notification_list = QListWidget(self.side_panel)
         self.notification_list.setObjectName("notificationList")
@@ -113,11 +131,10 @@ class UIMainWindow:
 
         self.start_button = QPushButton("시작", self.side_panel)
         self.start_button.setObjectName("primaryButton")
-        self.start_button.setMinimumHeight(52)
         self.break_button = QPushButton("쉬는 시간", self.side_panel)
         self.break_button.setObjectName("breakButton")
-        self.break_button.setMinimumHeight(52)
 
+        self.side_layout.addLayout(self.utility_layout)
         self.side_layout.addWidget(self.notification_list, 1)
         self.side_layout.addWidget(self.start_button)
         self.side_layout.addWidget(self.break_button)
