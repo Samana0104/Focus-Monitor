@@ -1,12 +1,14 @@
 from abc import ABC, abstractmethod
-from System.Define import DetectionResult, EAR_THRESHOLD
+from System.Define import DetectionResult, EAR_THRESHOLD, SIMILARITY_THRESHOLD
 
 import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import cv2  
-
 from pathlib import Path
+
+import numpy as np
+from insightface.app import FaceAnalysis
 
 class BaseDetector(ABC):
     @abstractmethod
@@ -17,7 +19,7 @@ class DetectionPipeline:
     def __init__(self):
         self._detectors = [
             EyeDetecter(),
-            #GazeDetecter(),
+            AbsenceDetecter(),
             #PhoneDetecter(),
         ]
 
@@ -81,13 +83,72 @@ class EyeDetecter(BaseDetector):
 
         return DetectionResult(label, triggered, metadata)
 
-class GazeDetecter(BaseDetector):
+class AbsenceDetecter(BaseDetector):
     def __init__(self):
-        pass
+        self._known_emb = None
+        # Load InsightFace Model
+        self._app = FaceAnalysis(
+            name="buffalo_l",
+            providers=["CPUExecutionProvider"]
+        )
+        self._app.prepare(
+            ctx_id=0,
+            det_size=(640, 640)
+        )
+
+    def get_embedding(self, image) -> tuple[bool, np.ndarray]:
+        """
+        Gets the normlized embedding of the largest face found.
+        """
+        faces = self._app(image)
+        
+        if len(faces) == 0:
+            return (False, None)
+
+        faces.sort(
+            key=lambda f: (f.bbox[2]-f.bbox[0]) * (f.bbox[3]-f.bbox[1]),
+            reverse=True
+        )
+
+        embedding = faces[0].embedding
+        return (True, embedding / np.linalg.norm(embedding))
+
+
+    def register_face(self, frame) -> bool:
+        """
+        Register user face. 
+        - returns True if succeeded
+        """
+        cvt_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        ret, embedding = self.get_embedding(cvt_image)
+        if ret:
+            self._known_emb = embedding
+
+        return ret
+
+    def cosine_similarity(a, b):
+        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
     def detect(self, frame) -> DetectionResult:
-        pass
+        label = "absent"
+        triggered = True
+        metadata = {"similarity": 0.0}
+        
+        cvt_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        ret, test_emb = self.get_embedding(cvt_image)
+        if ret:
+            similarity = self.cosine_similarity(self._known_emb, test_emb)
+            metadata["similarity"] = similarity
+            if similarity > SIMILARITY_THRESHOLD:
+                triggered = False
+            else:
+                triggered = True
+        else:
+            triggered = True
 
+        return DetectionResult(label, triggered, metadata)
+
+        
 
 class PhoneDetecter(BaseDetector):
     def __init__(self):

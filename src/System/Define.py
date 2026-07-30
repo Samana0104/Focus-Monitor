@@ -6,6 +6,8 @@ SETTING_PATH = "config/Settings.json"
 UI_STYLE_PATH = "res/ui/Style.qss"
 
 EAR_THRESHOLD = 0.2
+SIMILARITY_THRESHOLD = 0.65
+
 
 class LogLevel(Enum):
     NONE = "None"
@@ -21,9 +23,9 @@ class TerminalColor(Enum):
 
 
 class EventKey(Enum):
+    ABSENCE_DETECTED : str = "ABSENCE_DETECTED"
     DROWSY_DETECTED : str = "DROWSY_DETECTED"
     PHONE_DETECTED : str = "PHONE_DETECTED"
-    GAZE_AWAY : str = "GAZE_AWAY"
     ALERT_CLEARED : str = "ALERT_CLEARED"
 
 
