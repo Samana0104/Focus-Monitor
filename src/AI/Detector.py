@@ -11,11 +11,10 @@ import mediapipe as mp
 from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import cv2  
-from pathlib import Path
 
 import numpy as np
+from System.FunctionLibrary import FunctionLibrary
 from insightface.app import FaceAnalysis
-
 from ultralytics import YOLO
 
 class BaseDetector(ABC):
@@ -43,8 +42,8 @@ class DetectionPipeline:
 
 class EyeDetecter(BaseDetector):
     def __init__(self):
-        model_path = str(Path(__file__).parent / "face_landmarker_v2_with_blendshapes.task")
-        base_options = python.BaseOptions(model_asset_path=model_path)
+        model_path = FunctionLibrary.get_ai_path() / "face_landmarker_v2_with_blendshapes.task"
+        base_options = python.BaseOptions(model_asset_path=str(model_path))
         options = vision.FaceLandmarkerOptions(base_options=base_options,
                                             output_face_blendshapes=True,
                                             output_facial_transformation_matrixes=True,

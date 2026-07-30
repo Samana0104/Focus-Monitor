@@ -1,7 +1,7 @@
 import sys
 from pathlib import Path
 from typing import Any
-from System.Define import LogLevel, TerminalColor, DEBUG
+from System.Define import DEBUG, RESOURCE_PATH, LogLevel, TerminalColor
 
 """
 전역 함수를 포함하는 클래스입니다. 
@@ -57,10 +57,16 @@ class FunctionLibrary:
         return Path(__file__).resolve().parents[2]
 
     @staticmethod
-    def get_root_path_str() -> str:
-        """
-            프로젝트 루트 경로를 문자열로 반환합니다.
-            소스 모드에서는 프로젝트 루트 경로를 반환하고,
-            EXE 모드에서는 실행 파일이 위치한 디렉토리 경로를 반환
-        """
-        return str(FunctionLibrary.get_root_path())
+    def get_resource_path() -> Path:
+        """Return the resource directory path."""
+        return FunctionLibrary.get_root_path() / RESOURCE_PATH
+
+    @staticmethod
+    def get_ui_path() -> Path:
+        """Return the UI resource directory path."""
+        return FunctionLibrary.get_resource_path() / "ui"
+
+    @staticmethod
+    def get_ai_path() -> Path:
+        """Return the AI resource directory path."""
+        return FunctionLibrary.get_resource_path() / "ai"

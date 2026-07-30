@@ -86,16 +86,6 @@ if exist "%PROJECT_DIR%res" (
     )
 )
 
-if exist "%PROJECT_DIR%src\AI\*.task" (
-    if not exist "%OUTPUT_DIR%\AI" mkdir "%OUTPUT_DIR%\AI"
-    copy /Y "%PROJECT_DIR%src\AI\*.task" "%OUTPUT_DIR%\AI\" >nul
-    if errorlevel 1 (
-        echo [ERROR] Failed to copy AI model files.
-        pause
-        exit /b 1
-    )
-)
-
 echo.
 echo [SUCCESS] Build completed:
 echo           "%OUTPUT_DIR%"

@@ -1,5 +1,3 @@
-from pathlib import Path
-
 from PySide6.QtCore import (
     QEasingCurve,
     QParallelAnimationGroup,
@@ -22,7 +20,6 @@ from Singleton.Camera import camera_manager
 from Singleton.Settings import settings_instance
 from Singleton.Timer import timer_manager
 from System.FunctionLibrary import FunctionLibrary
-from System.Define import UI_STYLE_PATH
 from UI.UIMainWindow import UIMainWindow
 
 
@@ -189,7 +186,7 @@ class UIHandler(QMainWindow):
         self.ui.camera_stack.setCurrentWidget(self.ui.camera_placeholder_page)
 
     def __load_stylesheet(self) -> None:
-        stylesheet_path: Path = FunctionLibrary.get_root_path() / UI_STYLE_PATH
+        stylesheet_path = FunctionLibrary.get_ui_path() / "Style.qss"
         if stylesheet_path.exists():
             self.setStyleSheet(stylesheet_path.read_text(encoding="utf-8"))
 

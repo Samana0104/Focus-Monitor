@@ -3,7 +3,7 @@ from enum import Enum, auto
 
 DEBUG = True
 SETTING_PATH = "config/Settings.json"
-UI_STYLE_PATH = "res/ui/Style.qss"
+RESOURCE_PATH = "res"
 
 EAR_THRESHOLD = 0.2
 SIMILARITY_THRESHOLD = 0.65
