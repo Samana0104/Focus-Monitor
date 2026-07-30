@@ -3,6 +3,12 @@
     "window_width": 1440,
     "window_height": 900,
     "target_fps": 300,
+    "ai_params": {
+        "ear_threshold": 0.2,
+        "similarity_threshold": 0.65,
+        "cell_phone_class": 67,
+        "phone_face_distance_threshold": 2.5
+    },
     "ui_layout": {
         "notification_margin_horizontal": 16,
         "notification_margin_vertical": 13,

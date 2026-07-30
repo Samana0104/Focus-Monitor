@@ -5,11 +5,6 @@ DEBUG = True
 SETTING_PATH = "config/Settings.json"
 RESOURCE_PATH = "res"
 
-EAR_THRESHOLD = 0.2
-SIMILARITY_THRESHOLD = 0.65
-CELL_PHONE_CLASS = 67
-PHONE_FACE_DISTANCE_THRESHOLD = 2.5
-
 
 class LogLevel(Enum):
     NONE = "None"
