@@ -146,29 +146,33 @@ class AbsenceDetecter(BaseDetector):
         - returns True if succeeded
         """
         cvt_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        ret, embedding = self.get_embedding(cvt_image)
+        ret, embedding, _ = self.get_embedding(cvt_image)
         if ret:
             self._known_emb = embedding
 
         return ret
 
-    def cosine_similarity(a, b):
+    def cosine_similarity(self, a, b):
         return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
 
     def detect(self, frame) -> DetectionResult:
         label = "absent"
         triggered = True
         metadata = {"similarity": 0.0}
+        self.face_bbox = None
         
         cvt_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        ret, test_emb = self.get_embedding(cvt_image)
-        if ret:
+        ret, test_emb, bbox = self.get_embedding(cvt_image)
+        if ret and self._known_emb is not None:
+            self.face_bbox = bbox
             similarity = self.cosine_similarity(self._known_emb, test_emb)
             metadata["similarity"] = similarity
             if similarity > SIMILARITY_THRESHOLD:
                 triggered = False
             else:
                 triggered = True
+        elif ret:
+            self.face_bbox = bbox
         else:
             triggered = True
 
