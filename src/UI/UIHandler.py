@@ -6,7 +6,7 @@ from PySide6.QtCore import (
     Qt,
     QVariantAnimation,
 )
-from PySide6.QtGui import QIcon, QKeyEvent
+from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
@@ -63,7 +63,6 @@ class UIHandler(QMainWindow):
         self.ui.setup_ui(self)
         self._animations: list[QParallelAnimationGroup] = []
         self._is_on_break: bool = False
-        self._notification_requested: bool = False
         self._ui_settings_dialog: UISettingsDialog = UISettingsDialog(self)
 
         self.setWindowTitle(settings_instance["window_title"])
@@ -82,19 +81,6 @@ class UIHandler(QMainWindow):
         )
         self.__load_icons()
         self.__load_stylesheet()
-
-    def keyPressEvent(self, event: QKeyEvent) -> None:
-        if event.key() == Qt.Key.Key_1 and not event.isAutoRepeat():
-            self._notification_requested = True
-            event.accept()
-            return
-        super().keyPressEvent(event)
-
-    def consume_notification_request(self) -> bool:
-        if not self._notification_requested:
-            return False
-        self._notification_requested = False
-        return True
 
     def start_requested(self, checked: bool = False) -> None:
         self._is_on_break = False
