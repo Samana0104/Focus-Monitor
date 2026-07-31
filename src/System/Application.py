@@ -5,8 +5,10 @@ from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import QApplication
 from Singleton.Bgm import Bgm, bgm_instance
 from Singleton.EffectSound import EffectSound, effect_sound_instance
+from Singleton.Events import event_manager
 from Singleton.Input import Input, input_instance
 from System.FunctionLibrary import FunctionLibrary
+from System.Define import EventKey
 from Singleton.Settings import settings_instance
 from Singleton.Timer import timer_manager
 from UI.UIHandler import UIHandler
@@ -57,7 +59,7 @@ class Application:
     def __update(self) -> None:
         if self._input.consume_mouse_button_press(Qt.MouseButton.LeftButton):
             self._effect_sound.play("notification.wav")
-            self._ui.add_notification("알림", "숫자 1 키 입력이 감지되었습니다.")
+            event_manager.publish(EventKey.DROWSY_DETECTED.value)
 
     def __render(self) -> None:
         self._ui.render()

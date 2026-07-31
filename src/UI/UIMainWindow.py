@@ -125,6 +125,8 @@ class UIMainWindow:
         self.notification_list.setObjectName("notificationList")
         self.notification_list.setFocusPolicy(Qt.FocusPolicy.NoFocus)
         self.notification_list.setSpacing(8)
+        self.notification_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOn)
+        self.notification_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.notification_list.setVerticalScrollMode(
             QAbstractItemView.ScrollMode.ScrollPerPixel
         )

@@ -1,15 +1,20 @@
+from time import monotonic
+
 from PySide6.QtCore import (
     QEasingCurve,
     QParallelAnimationGroup,
     QPropertyAnimation,
     QSize,
+    Signal,
+    QTimer,
     Qt,
     QVariantAnimation,
 )
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
+    QHBoxLayout,
     QLabel,
     QListWidgetItem,
     QMainWindow,
@@ -17,8 +22,10 @@ from PySide6.QtWidgets import (
 )
 
 from Singleton.Camera import camera_manager
+from Singleton.Events import Payload, event_manager
 from Singleton.Settings import settings_instance
 from Singleton.Timer import timer_manager
+from System.Define import EventKey
 from System.FunctionLibrary import FunctionLibrary
 from UI.UISettingsDialog import UISettingsDialog
 from UI.UIMainWindow import UIMainWindow
@@ -29,33 +36,69 @@ class NotificationCard(QFrame):
         super().__init__()
         self.setObjectName("notificationCard")
 
-        layout: QVBoxLayout = QVBoxLayout(self)
-        layout.setContentsMargins(
-            settings_instance.ui_layout["notification_margin_horizontal"],
-            settings_instance.ui_layout["notification_margin_vertical"],
-            settings_instance.ui_layout["notification_margin_horizontal"],
-            settings_instance.ui_layout["notification_margin_vertical"],
-        )
-        layout.setSpacing(
-            settings_instance.ui_layout["notification_content_spacing"]
-        )
+        layout: QHBoxLayout = QHBoxLayout(self)
+        layout.setContentsMargins(settings_instance.ui_layout["notification_margin_horizontal"], settings_instance.ui_layout["notification_margin_vertical"], settings_instance.ui_layout["notification_margin_horizontal"], settings_instance.ui_layout["notification_margin_vertical"])
+        layout.setSpacing(12)
+
+        self._icon_label: QLabel = QLabel(self)
+        self._icon_label.setObjectName("notificationIcon")
+        self._icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._icon_label.setFixedSize(42, 42)
+        layout.addWidget(self._icon_label)
+
+        content_layout: QVBoxLayout = QVBoxLayout()
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(settings_instance.ui_layout["notification_content_spacing"])
+
+        header_layout: QHBoxLayout = QHBoxLayout()
+        header_layout.setContentsMargins(0, 0, 0, 0)
+        header_layout.setSpacing(8)
 
         self._title_label: QLabel = QLabel()
         self._title_label.setObjectName("notificationTitle")
-        layout.addWidget(self._title_label)
+        header_layout.addWidget(self._title_label, 1)
+
+        self._time_label: QLabel = QLabel("0초 전")
+        self._time_label.setObjectName("notificationTime")
+        self._time_label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+        header_layout.addWidget(self._time_label)
+        content_layout.addLayout(header_layout)
 
         self._detail_label: QLabel = QLabel()
         self._detail_label.setObjectName("notificationDetail")
-        self._detail_label.setWordWrap(True)
-        layout.addWidget(self._detail_label)
+        content_layout.addWidget(self._detail_label)
+        layout.addLayout(content_layout, 1)
 
-    def set_content(self, title: str, detail: str = "") -> None:
+        self._created_at: float = monotonic()
+
+    def set_content(self, title: str, detail: str = "", icon_name: str = "sleeping.png") -> None:
         self._title_label.setText(title)
         self._detail_label.setText(detail)
         self._detail_label.setVisible(bool(detail))
+        self._created_at = monotonic()
+        self._time_label.setText("0초 전")
+
+        pixmap = QPixmap(str(FunctionLibrary.get_ui_path() / icon_name))
+        self._icon_label.setVisible(not pixmap.isNull())
+        if not pixmap.isNull():
+            self._icon_label.setPixmap(pixmap.scaled(26, 26, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+
+    def update_elapsed_time(self, now: float) -> None:
+        elapsed_seconds = int(now - self._created_at)
+        if elapsed_seconds < 60:
+            text = f"{elapsed_seconds}초 전"
+        elif elapsed_seconds < 3600:
+            text = f"{elapsed_seconds // 60}분 전"
+        elif elapsed_seconds < 86400:
+            text = f"{elapsed_seconds // 3600}시간 전"
+        else:
+            text = f"{elapsed_seconds // 86400}일 전"
+        self._time_label.setText(text)
 
 
 class UIHandler(QMainWindow):
+    notification_received = Signal(str, str, str)
+
     def __init__(self) -> None:
         super().__init__()
 
@@ -64,6 +107,11 @@ class UIHandler(QMainWindow):
         self._animations: list[QParallelAnimationGroup] = []
         self._is_on_break: bool = False
         self._ui_settings_dialog: UISettingsDialog = UISettingsDialog(self)
+        self._notification_time_timer: QTimer = QTimer(self)
+        self._notification_time_timer.setInterval(5000)
+        self._notification_time_timer.timeout.connect(self.__update_notification_times)
+        self._notification_time_timer.start()
+        self.notification_received.connect(self.add_notification)
 
         self.setWindowTitle(settings_instance["window_title"])
         self.resize(
@@ -101,10 +149,11 @@ class UIHandler(QMainWindow):
         self._ui_settings_dialog.activateWindow()
 
     def initialize(self) -> None:
+        self.__subscribe_events()
         self.show()
         self.__start_camera()
 
-    def add_notification(self, title: str, detail: str = "") -> None:
+    def add_notification(self, title: str, detail: str = "", icon_name: str = "sleeping.png") -> None:
         max_count: int = settings_instance.ui_layout["notification_max_count"]
         if max_count <= 0:
             return
@@ -114,7 +163,7 @@ class UIHandler(QMainWindow):
 
         item: QListWidgetItem = QListWidgetItem()
         card: NotificationCard = NotificationCard()
-        card.set_content(title, detail)
+        card.set_content(title, detail, icon_name)
         target_height: int = settings_instance.ui_layout["notification_height"]
         item.setSizeHint(QSize(0, 0))
         self.ui.notification_list.addItem(item)
@@ -166,8 +215,48 @@ class UIHandler(QMainWindow):
         )
 
     def shutdown(self) -> None:
+        self.__unsubscribe_events()
+        self._notification_time_timer.stop()
         camera_manager.stop()
         self.close()
+
+    def __subscribe_events(self) -> None:
+        event_manager.subscribe(EventKey.ABSENCE_DETECTED.value, self.__on_absence_detected)
+        event_manager.subscribe(EventKey.DROWSY_DETECTED.value, self.__on_drowsy_detected)
+        event_manager.subscribe(EventKey.PHONE_DETECTED.value, self.__on_phone_detected)
+        event_manager.subscribe(EventKey.ALERT_CLEARED.value, self.__on_alert_cleared)
+
+    def __unsubscribe_events(self) -> None:
+        event_manager.unsubscribe(EventKey.ABSENCE_DETECTED.value, self.__on_absence_detected)
+        event_manager.unsubscribe(EventKey.DROWSY_DETECTED.value, self.__on_drowsy_detected)
+        event_manager.unsubscribe(EventKey.PHONE_DETECTED.value, self.__on_phone_detected)
+        event_manager.unsubscribe(EventKey.ALERT_CLEARED.value, self.__on_alert_cleared)
+
+    def __on_absence_detected(self, payload: Payload) -> None:
+        self.__emit_notification(payload, "자리 비움 감지", "사용자가 자리를 비웠습니다.")
+
+    def __on_drowsy_detected(self, payload: Payload) -> None:
+        self.__emit_notification(payload, "졸음 감지", "졸고 있습니다.")
+
+    def __on_phone_detected(self, payload: Payload) -> None:
+        self.__emit_notification(payload, "휴대폰 감지", "휴대폰을 사용하고 있습니다.")
+
+    def __on_alert_cleared(self, payload: Payload) -> None:
+        self.__emit_notification(payload, "상태 정상", "이상 상태가 해제되었습니다.")
+
+    def __emit_notification(self, payload: Payload, title: str, detail: str) -> None:
+        notification_title = str(payload.get("title", title))
+        notification_detail = str(payload.get("detail", detail))
+        icon_name = str(payload.get("icon_name", "sleeping.png"))
+        self.notification_received.emit(notification_title, notification_detail, icon_name)
+
+    def __update_notification_times(self) -> None:
+        now: float = monotonic()
+        for index in range(self.ui.notification_list.count()):
+            item = self.ui.notification_list.item(index)
+            card = self.ui.notification_list.itemWidget(item)
+            if isinstance(card, NotificationCard):
+                card.update_elapsed_time(now)
 
     def __start_camera(self) -> None:
         camera_manager.set_video_output(self.ui.camera_video)

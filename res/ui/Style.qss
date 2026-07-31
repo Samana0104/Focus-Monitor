@@ -36,12 +36,36 @@ QListWidget#notificationList::item {
     padding: 0;
 }
 
+QListWidget#notificationList QScrollBar:vertical {
+    background-color: transparent;
+    width: 10px;
+    margin: 2px 0;
+}
+
+QListWidget#notificationList QScrollBar::handle:vertical {
+    background-color: #C9CED6;
+    border-radius: 4px;
+    min-height: 28px;
+}
+
+QListWidget#notificationList QScrollBar::add-line:vertical,
+QListWidget#notificationList QScrollBar::sub-line:vertical {
+    height: 0;
+}
+
+QListWidget#notificationList QScrollBar::add-page:vertical,
+QListWidget#notificationList QScrollBar::sub-page:vertical {
+    background-color: transparent;
+}
+
 QFrame#notificationCard {
     background-color: #FFFFFF;
     border: 1px solid #E5E8EB;
     border-radius: 14px;
 }
+QLabel#notificationIcon { background-color: #F2F4F6; border: none; border-radius: 10px; padding: 6px; }
 QLabel#notificationTitle { color: #191F28; font-size: 15px; font-weight: 700; background-color: transparent; border: none; }
+QLabel#notificationTime { color: #8B95A1; font-size: 11px; background-color: transparent; border: none; }
 QLabel#notificationDetail { color: #6B7684; font-size: 13px; background-color: transparent; border: none; }
 
 QPushButton {
