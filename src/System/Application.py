@@ -3,6 +3,9 @@ import System
 
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import QApplication
+from Singleton.Bgm import Bgm, bgm_instance
+from Singleton.EffectSound import EffectSound, effect_sound_instance
+from Singleton.Input import Input, input_instance
 from System.FunctionLibrary import FunctionLibrary
 from Singleton.Settings import settings_instance
 from Singleton.Timer import timer_manager
@@ -12,6 +15,9 @@ class Application:
     def __init__(self):
         self._running : bool = False
         self._qt_app : QApplication = QApplication(sys.argv)
+        self._bgm: Bgm = bgm_instance
+        self._effect_sound: EffectSound = effect_sound_instance
+        self._input: Input = input_instance
         self._ui : UIHandler = UIHandler()
 
         self._timer: QTimer = QTimer()
@@ -25,31 +31,34 @@ class Application:
         return self._running
 
     @property
-    def delta_time(self) -> float:
-        return timer_manager.delta_time
+    def bgm(self) -> Bgm:
+        return self._bgm
 
     @property
-    def fps(self) -> float:
-        return timer_manager.fps
+    def effect_sound(self) -> EffectSound:
+        return self._effect_sound
 
     @property
-    def frame_count(self) -> int:
-        return timer_manager.frame_count
+    def input(self) -> Input:
+        return self._input
 
     def initialize(self) -> None:
         """Initialize and show application resources once."""
 
         System.FunctionLibrary.log("Application is starting...", System.LogLevel.NONE)
         settings_instance.load()
-        timer_manager.start()
+        self._input.initialize(self._qt_app)
+        self._bgm.initialize(self._qt_app)
+        self._effect_sound.initialize(self._qt_app)
+        self._effect_sound.preload("notification.wav")
         self._ui.initialize()
 
+        timer_manager.start()
+
     def __update(self) -> None:
-        if self._ui.consume_notification_request():
-            self._ui.add_notification(
-                "알림",
-                "숫자 1 키 입력이 감지되었습니다.",
-            )
+        if self._input.consume_key_press(Qt.Key.Key_1):
+            self._effect_sound.play("notification.wav")
+            self._ui.add_notification("알림", "숫자 1 키 입력이 감지되었습니다.")
 
     def __render(self) -> None:
         self._ui.render()
@@ -59,6 +68,9 @@ class Application:
         """Release UI resources once."""
         self._timer.stop()
         timer_manager.stop()
+        self._input.shutdown()
+        self._bgm.shutdown()
+        self._effect_sound.shutdown()
         self._ui.shutdown()
 
     def __tick(self) -> None:
@@ -73,6 +85,8 @@ class Application:
         except Exception:
             self.stop()
             raise
+        finally:
+            self._input.end_frame()
 
 
     def run(self) -> int:

@@ -67,6 +67,11 @@ class FunctionLibrary:
         return FunctionLibrary.get_resource_path() / "ui"
 
     @staticmethod
+    def get_audio_path() -> Path:
+        """Return the audio resource directory path."""
+        return FunctionLibrary.get_resource_path() / "audio"
+
+    @staticmethod
     def get_ai_path() -> Path:
         """Return the AI resource directory path."""
         return FunctionLibrary.get_resource_path() / "ai"
