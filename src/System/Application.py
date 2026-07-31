@@ -50,13 +50,12 @@ class Application:
         self._input.initialize(self._qt_app)
         self._bgm.initialize(self._qt_app)
         self._effect_sound.initialize(self._qt_app)
-        self._effect_sound.preload("notification.wav")
         self._ui.initialize()
 
         timer_manager.start()
 
     def __update(self) -> None:
-        if self._input.consume_key_press(Qt.Key.Key_1):
+        if self._input.consume_mouse_button_press(Qt.MouseButton.LeftButton):
             self._effect_sound.play("notification.wav")
             self._ui.add_notification("알림", "숫자 1 키 입력이 감지되었습니다.")
 

@@ -44,6 +44,15 @@ class EffectSound(Singleton):
         self.set_volume(float(audio_settings.get("effect_volume", 1.0)))
         self.set_muted(bool(audio_settings.get("effect_muted", False)))
 
+        audio_path = FunctionLibrary.get_audio_path()
+        if not audio_path.is_dir():
+            FunctionLibrary.log(f"Audio directory not found: {audio_path}", LogLevel.WARNING)
+            return
+
+        for source_path in audio_path.iterdir():
+            if source_path.is_file():
+                self.preload(source_path.name)
+
     def preload(self, file_name: str) -> bool:
         source_path = FunctionLibrary.get_audio_path().joinpath(file_name)
         if not source_path.is_file():
