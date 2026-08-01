@@ -17,6 +17,7 @@ class UISettingsDialog(QDialog):
         ("ear_threshold", "눈 감김 기준 (EAR)", "값이 높을수록 눈 감김에 민감하게 반응합니다.", 0, 100, 100),
         ("similarity_threshold", "얼굴 유사도", "값이 높을수록 등록된 얼굴 판정을 엄격하게 합니다.", 0, 100, 100),
         ("cell_phone_class", "휴대폰 클래스 ID", "YOLO에서 휴대폰으로 분류할 클래스 번호입니다.", 0, 100, 1),
+        ("phone_confidence_threshold", "휴대폰 신뢰도", "값이 높을수록 확실한 휴대폰만 감지합니다.", 0, 100, 100),
         ("phone_face_distance_threshold", "휴대폰 거리 기준", "값이 높을수록 얼굴에서 먼 휴대폰도 감지합니다.", 0, 50, 10),
     )
 
