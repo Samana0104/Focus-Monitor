@@ -88,10 +88,9 @@ class Application:
         interval_ms: int = max(1, round(1000 / target_fps))
         self._timer.start(interval_ms)
 
-        FunctionLibrary.show_popup(
+        self._ui.show_popup(
             title="OnDevice-AI",
             reason="Application is starting...",
-            parent=None
         )
         try:
             return self._qt_app.exec()

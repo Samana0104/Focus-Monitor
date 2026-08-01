@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QListWidgetItem,
     QMainWindow,
+    QMessageBox,
     QVBoxLayout,
 )
 
@@ -28,6 +29,7 @@ from Singleton.Timer import timer_manager
 from Singleton.EffectSound import effect_sound
 from System.Define import EventKey
 from System.FunctionLibrary import FunctionLibrary
+from UI.UIPopupDialog import UIPopupDialog
 from UI.UISettingsDialog import UISettingsDialog
 from UI.UIMainWindow import UIMainWindow
 
@@ -156,6 +158,16 @@ class UIHandler(QMainWindow):
         self._ui_settings_dialog.move(dialog_geometry.topLeft())
         self._ui_settings_dialog.raise_()
         self._ui_settings_dialog.activateWindow()
+
+    def show_popup(
+        self,
+        title: str,
+        reason: str,
+        buttons: QMessageBox.StandardButton = QMessageBox.StandardButton.Ok,
+        icon: QMessageBox.Icon = QMessageBox.Icon.Information,
+    ) -> QMessageBox.StandardButton:
+        popup = UIPopupDialog(title, reason, buttons, icon, self)
+        return popup.exec_standard_button()
 
     def initialize(self) -> None:
         self.__subscribe_events()

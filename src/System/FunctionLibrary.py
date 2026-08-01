@@ -2,9 +2,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtWidgets import QApplication, QMessageBox, QWidget
-from UI.UIPopupDialog import UIPopupDialog
-
 from System.Define import DEBUG, RESOURCE_PATH, LogLevel, TerminalColor
 
 """
@@ -79,32 +76,3 @@ class FunctionLibrary:
     def get_ai_path() -> Path:
         """Return the AI resource directory path."""
         return FunctionLibrary.get_resource_path() / "ai"
-
-    @staticmethod
-    def show_popup(
-        title: str,
-        reason: str,
-        buttons: QMessageBox.StandardButton = QMessageBox.StandardButton.Ok,
-        icon: QMessageBox.Icon = QMessageBox.Icon.Information,
-        parent: QWidget | None = None,
-    ) -> QMessageBox.StandardButton:
-        """
-        팝업 메시지를 표시합니다.
-
-        Args:
-            title: 팝업 제목
-            reason: 팝업 내용
-            buttons: 팝업 버튼
-            icon: 팝업 아이콘
-            parent: 팝업 부모 위젯
-
-            :return: 팝업 버튼
-        """
-        if QApplication.instance() is None:
-            raise RuntimeError("QApplication must be created before showing a popup.")
-
-        popup = UIPopupDialog(title, reason, buttons, icon, parent)
-        stylesheet_path = FunctionLibrary.get_ui_path() / "Style.qss"
-        if stylesheet_path.is_file():
-            popup.setStyleSheet(stylesheet_path.read_text(encoding="utf-8"))
-        return popup.exec_standard_button()
