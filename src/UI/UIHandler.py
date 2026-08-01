@@ -25,6 +25,7 @@ from Singleton.Camera import camera_manager
 from Singleton.Events import Payload, event_manager
 from Singleton.Settings import settings_instance
 from Singleton.Timer import timer_manager
+from Singleton.EffectSound import effect_sound
 from System.Define import EventKey
 from System.FunctionLibrary import FunctionLibrary
 from UI.UISettingsDialog import UISettingsDialog
@@ -105,7 +106,7 @@ class UIHandler(QMainWindow):
         self.ui: UIMainWindow = UIMainWindow()
         self.ui.setup_ui(self)
         self._animations: list[QParallelAnimationGroup] = []
-        self._is_on_break: bool = False
+        self._is_started: bool = False
         self._ui_settings_dialog: UISettingsDialog = UISettingsDialog(self)
         self._notification_time_timer: QTimer = QTimer(self)
         self._notification_time_timer.setInterval(5000)
@@ -127,18 +128,26 @@ class UIHandler(QMainWindow):
         self.ui.notification_list.verticalScrollBar().rangeChanged.connect(
             self.__keep_notification_scroll_at_bottom
         )
+        self.__set_started(False)
         self.__load_icons()
         self.__load_stylesheet()
 
     def start_requested(self, checked: bool = False) -> None:
-        self._is_on_break = False
+        if self._is_started:
+            return
+
+        event_manager.publish(EventKey.START_REQUESTED.value)
         self.__show_camera_waiting()
-        self.__start_camera()
+        self.__set_started(self.__start_camera())
 
     def break_requested(self, checked: bool = False) -> None:
-        self._is_on_break = True
+        if not self._is_started:
+            return
+
+        event_manager.publish(EventKey.BREAK_REQUESTED.value)
         camera_manager.stop()
         self.__show_camera_waiting()
+        self.__set_started(False)
 
     def open_settings(self, checked: bool = False) -> None:
         self._ui_settings_dialog.show()
@@ -151,9 +160,9 @@ class UIHandler(QMainWindow):
     def initialize(self) -> None:
         self.__subscribe_events()
         self.show()
-        self.__start_camera()
+        self.__set_started(self.__start_camera())
 
-    def add_notification(self, title: str, detail: str = "", icon_name: str = "sleeping.png") -> None:
+    def add_notification(self, title: str, detail: str, icon_name: str) -> None:
         max_count: int = settings_instance.ui_layout["notification_max_count"]
         if max_count <= 0:
             return
@@ -203,12 +212,17 @@ class UIHandler(QMainWindow):
         self.ui.notification_list.scrollToBottom()
         group.start()
 
+        effect_sound.play("notification.wav")
+
     def set_size(self, width: int, height: int) -> None:
         self.resize(width, height)
         settings_instance["window_width"] = width
         settings_instance["window_height"] = height
 
     def render(self) -> None:
+        if self._is_started != camera_manager.is_running:
+            self.__set_started(camera_manager.is_running)
+
         self.ui.status_label.setText(
             f"FPS: {timer_manager.fps:.1f} | "
             f"Frame: {timer_manager.frame_count}"
@@ -218,6 +232,7 @@ class UIHandler(QMainWindow):
         self.__unsubscribe_events()
         self._notification_time_timer.stop()
         camera_manager.stop()
+        self.__set_started(False)
         self.close()
 
     def __subscribe_events(self) -> None:
@@ -225,29 +240,48 @@ class UIHandler(QMainWindow):
         event_manager.subscribe(EventKey.DROWSY_DETECTED.value, self.__on_drowsy_detected)
         event_manager.subscribe(EventKey.PHONE_DETECTED.value, self.__on_phone_detected)
         event_manager.subscribe(EventKey.ALERT_CLEARED.value, self.__on_alert_cleared)
+        event_manager.subscribe(EventKey.START_REQUESTED.value, self.__on_start_requested)
+        event_manager.subscribe(EventKey.BREAK_REQUESTED.value, self.__on_break_requested)
 
     def __unsubscribe_events(self) -> None:
         event_manager.unsubscribe(EventKey.ABSENCE_DETECTED.value, self.__on_absence_detected)
         event_manager.unsubscribe(EventKey.DROWSY_DETECTED.value, self.__on_drowsy_detected)
         event_manager.unsubscribe(EventKey.PHONE_DETECTED.value, self.__on_phone_detected)
         event_manager.unsubscribe(EventKey.ALERT_CLEARED.value, self.__on_alert_cleared)
+        event_manager.unsubscribe(EventKey.START_REQUESTED.value, self.__on_start_requested)
+        event_manager.unsubscribe(EventKey.BREAK_REQUESTED.value, self.__on_break_requested)
 
     def __on_absence_detected(self, payload: Payload) -> None:
-        self.__emit_notification(payload, "자리 비움 감지", "사용자가 자리를 비웠습니다.")
+        self.__emit_notification(EventKey.ABSENCE_DETECTED, payload)
 
     def __on_drowsy_detected(self, payload: Payload) -> None:
-        self.__emit_notification(payload, "졸음 감지", "졸고 있습니다.")
+        self.__emit_notification(EventKey.DROWSY_DETECTED, payload)
 
     def __on_phone_detected(self, payload: Payload) -> None:
-        self.__emit_notification(payload, "휴대폰 감지", "휴대폰을 사용하고 있습니다.")
+        self.__emit_notification(EventKey.PHONE_DETECTED, payload)
 
     def __on_alert_cleared(self, payload: Payload) -> None:
-        self.__emit_notification(payload, "상태 정상", "이상 상태가 해제되었습니다.")
+        self.__emit_notification(EventKey.ALERT_CLEARED, payload)
 
-    def __emit_notification(self, payload: Payload, title: str, detail: str) -> None:
-        notification_title = str(payload.get("title", title))
-        notification_detail = str(payload.get("detail", detail))
-        icon_name = str(payload.get("icon_name", "sleeping.png"))
+    def __on_start_requested(self, payload: Payload) -> None:
+        self.__emit_notification(EventKey.START_REQUESTED, payload)
+
+    def __on_break_requested(self, payload: Payload) -> None:
+        self.__emit_notification(EventKey.BREAK_REQUESTED, payload)
+
+    def __emit_notification(self, event_key: EventKey, payload: Payload) -> None:
+        event_messages = getattr(settings_instance, "event_messages", {})
+        if not isinstance(event_messages, dict):
+            event_messages = {}
+
+        message = event_messages.get(event_key.value, {})
+        if not isinstance(message, dict):
+            message = {}
+
+        notification_title = str(payload.get("title", message.get("title", event_key.value)))
+        notification_detail = str(payload.get("detail", message.get("detail", "")))
+        icon_value = payload.get("icon_name", message.get("icon_name"))
+        icon_name = "" if icon_value is None else str(icon_value)
         self.notification_received.emit(notification_title, notification_detail, icon_name)
 
     def __update_notification_times(self) -> None:
@@ -258,14 +292,20 @@ class UIHandler(QMainWindow):
             if isinstance(card, NotificationCard):
                 card.update_elapsed_time(now)
 
-    def __start_camera(self) -> None:
+    def __start_camera(self) -> bool:
         camera_manager.set_video_output(self.ui.camera_video)
         if camera_manager.run():
             self.ui.camera_stack.setCurrentWidget(self.ui.camera_video_page)
-            return
+            return True
 
         self.ui.camera_view.setText(camera_manager.last_error)
         self.ui.camera_stack.setCurrentWidget(self.ui.camera_placeholder_page)
+        return False
+
+    def __set_started(self, started: bool) -> None:
+        self._is_started = bool(started)
+        self.ui.start_button.setEnabled(not self._is_started)
+        self.ui.break_button.setEnabled(self._is_started)
 
     def __show_camera_waiting(self) -> None:
         waiting_text: str = str(self.ui.camera_view.property("waitingText"))

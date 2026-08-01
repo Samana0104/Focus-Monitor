@@ -123,4 +123,4 @@ class EffectSound(Singleton):
         self._next_channel.clear()
         self._application = None
 
-effect_sound_instance: EffectSound = EffectSound.get_instance()
+effect_sound : EffectSound = EffectSound.get_instance()

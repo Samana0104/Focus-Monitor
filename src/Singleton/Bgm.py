@@ -123,4 +123,4 @@ class Bgm(Singleton):
         FunctionLibrary.log(message, LogLevel.DANGER)
 
 
-bgm_instance: Bgm = Bgm.get_instance()
+bgm_manager : Bgm = Bgm.get_instance()

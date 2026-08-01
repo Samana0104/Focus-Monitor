@@ -2,13 +2,45 @@
     "window_title": "OnDevice AI",
     "window_width": 1440,
     "window_height": 900,
-    "target_fps": 60,
+    "target_fps": 300,
     "audio": {
         "bgm_volume": 0.5,
         "bgm_muted": false,
         "effect_volume": 1.0,
         "effect_muted": false,
         "effect_channels": 4
+    },
+    "event_messages": {
+        "ABSENCE_DETECTED": {
+            "title": "자리 비움 감지",
+            "detail": "사용자가 자리를 비웠습니다.",
+            "icon_name": "empty_seat.png"
+        },
+        "DROWSY_DETECTED": {
+            "title": "졸음 감지",
+            "detail": "졸고 있습니다.",
+            "icon_name": "sleeping.png"
+        },
+        "PHONE_DETECTED": {
+            "title": "휴대폰 감지",
+            "detail": "휴대폰을 사용하고 있습니다.",
+            "icon_name": "sleeping.png"
+        },
+        "ALERT_CLEARED": {
+            "title": "상태 정상",
+            "detail": "이상 상태가 해제되었습니다.",
+            "icon_name": "sleeping.png"
+        },
+        "START_REQUESTED": {
+            "title": "집중 시작",
+            "detail": "집중 모니터링을 시작합니다.",
+            "icon_name": "focus_on.png"
+        },
+        "BREAK_REQUESTED": {
+            "title": "쉬는 시간",
+            "detail": "집중 모니터링을 잠시 중단합니다.",
+            "icon_name": "break_time.png"
+        }
     },
     "ai_params": {
         "ear_threshold": 0.2,
