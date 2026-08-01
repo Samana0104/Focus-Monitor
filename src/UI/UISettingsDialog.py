@@ -14,6 +14,7 @@ class UISettingsDialog(QDialog):
     )
 
     AI_PARAMETERS = (
+        ("detection_interval_ms", "감지 주기 (ms)", "AI 감지를 실행할 간격입니다.", 100, 5000, 1),
         ("ear_threshold", "눈 감김 기준 (EAR)", "값이 높을수록 눈 감김에 민감하게 반응합니다.", 0, 100, 100),
         ("similarity_threshold", "얼굴 유사도", "값이 높을수록 등록된 얼굴 판정을 엄격하게 합니다.", 0, 100, 100),
         ("cell_phone_class", "휴대폰 클래스 ID", "YOLO에서 휴대폰으로 분류할 클래스 번호입니다.", 0, 100, 1),
