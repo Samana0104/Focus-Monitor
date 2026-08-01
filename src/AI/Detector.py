@@ -1,8 +1,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Sequence
 
-from PySide6.QtCore import Qt
-from System.Define import DEBUG, DetectionResult, LogLevel
+from System.Define import DetectionResult, LogLevel
 
 import mediapipe as mp
 from mediapipe.tasks import python
@@ -13,7 +12,6 @@ import numpy as np
 import torch
 import onnxruntime as ort
 from Singleton.Settings import settings_instance
-from Singleton.Input import input_manager
 from System.FunctionLibrary import FunctionLibrary
 from insightface.app import FaceAnalysis
 from ultralytics import YOLO
@@ -39,70 +37,7 @@ class DetectionPipeline:
 
         eye_result = self._eye_detector.detect(frame, self._face_bbox)
         phone_result = self._phone_detector.detect(frame, self._face_bbox)
-        if DEBUG:
-            self.__draw_debug_overlay(frame, absence_result, eye_result, phone_result)
-
         return [absence_result, eye_result, phone_result]
-
-    def __draw_debug_overlay(self, frame: np.ndarray, absence_result: DetectionResult, eye_result: DetectionResult, phone_result: DetectionResult) -> None:
-        # Face detection overlay
-        # 1번 key를 눌렀을 때만 얼굴 인식 상태를 표시하도록
-        if input_manager.is_key_down(Qt.Key.Key_1):
-            face_bbox = absence_result.metadata.get("bbox")
-            if face_bbox is None:
-                self.__draw_text(frame, "FACE: NOT FOUND", (20, 30), (0, 0, 255))
-            else:
-                similarity = float(absence_result.metadata.get("similarity", 0.0))
-                if absence_result.triggered:
-                    face_color = (0, 0, 255)
-                else:
-                    face_color = (0, 255, 0)
-                self.__draw_box(frame, face_bbox, face_color, f"FACE {similarity:.2f}")
-
-
-        # Eye detection overlay
-        # 2번 key를 눌렀을 때만 눈 감김 상태를 표시하도록
-        if input_manager.is_key_down(Qt.Key.Key_2):
-            if eye_result.triggered:
-                eye_color = (0, 0, 255)
-            else:
-                eye_color = (0, 255, 255)
-            ear = float(eye_result.metadata.get("ear", 0.0))
-            for eye_bbox in eye_result.metadata.get("eye_boxes", []):
-                self.__draw_box(frame, eye_bbox, eye_color, f"EYE {ear:.2f}")
-
-        # Phone detection overlay
-        # 3번 key를 눌렀을 때만 휴대폰 인식 상태를 표시하도록
-        if input_manager.is_key_down(Qt.Key.Key_3):
-            if phone_result.triggered:
-                phone_color = (0, 0, 255)
-            else:
-                phone_color = (255, 128, 0)
-            for phone in phone_result.metadata.get("boxes", []):
-                confidence = float(phone.get("confidence", 0.0))
-                self.__draw_box(frame, phone["bbox"], phone_color, f"PHONE {confidence:.2f}")
-
-    def __draw_box(self, frame: np.ndarray, bbox: Sequence[float], color: tuple[int, int, int], label: str) -> None:
-        frame_height, frame_width = frame.shape[:2]
-        x1, y1, x2, y2 = [int(value) for value in bbox]
-        x1 = max(0, min(frame_width - 1, x1))
-        y1 = max(0, min(frame_height - 1, y1))
-        x2 = max(0, min(frame_width - 1, x2))
-        y2 = max(0, min(frame_height - 1, y2))
-        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-        self.__draw_text(frame, label, (x1, max(20, y1 - 8)), color)
-
-    def __draw_text(self, frame: np.ndarray, text: str, origin: tuple[int, int], color: tuple[int, int, int]) -> None:
-        cv2.putText(
-            frame,
-            text,
-            origin,
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.55,
-            color,
-            2,
-            cv2.LINE_AA,
-        )
 
 class EyeDetecter(BaseDetector):
     def __init__(self) -> None:

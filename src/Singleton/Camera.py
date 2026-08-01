@@ -1,6 +1,7 @@
 from threading import Lock
 from typing import Any
 
+import cv2
 import numpy as np
 from PySide6.QtGui import QImage
 from PySide6.QtMultimedia import (
@@ -12,9 +13,8 @@ from PySide6.QtMultimedia import (
 )
 
 from Singleton.Singleton import Singleton
-from System.Define import DEBUG, LogLevel
+from System.Define import DEBUG, DebugBox, DebugText, LogLevel
 from System.FunctionLibrary import FunctionLibrary
-from AI.Detector import DetectionPipeline
 
 
 class CameraManager(Singleton):
@@ -33,9 +33,9 @@ class CameraManager(Singleton):
         self._display_sink: QVideoSink | None = None
         self._frame_lock = Lock()
         self._bgr_frame: np.ndarray | None = None
+        self._frame_version: int = 0
+        self._last_debug_frame_version: int = -1
         self._last_error = ""
-
-        self._detector: DetectionPipeline = DetectionPipeline()  # Initialize the detector here
 
     @property
     def is_running(self) -> bool:
@@ -113,6 +113,8 @@ class CameraManager(Singleton):
 
         with self._frame_lock:
             self._bgr_frame = None
+            self._frame_version = 0
+            self._last_debug_frame_version = -1
 
     def get_frame(self, copy: bool = True) -> np.ndarray | None:
         """Compatibility alias returning the latest BGR frame."""
@@ -123,7 +125,9 @@ class CameraManager(Singleton):
         with self._frame_lock:
             if self._bgr_frame is None:
                 return None
-            return self._bgr_frame.copy() if copy else self._bgr_frame
+            if copy:
+                return self._bgr_frame.copy()
+            return self._bgr_frame
 
     def get_mediapipe_frame(self, copy: bool = True) -> np.ndarray | None:
         """Return a uint8 HxWx3 RGB NumPy frame for MediaPipe."""
@@ -143,7 +147,23 @@ class CameraManager(Singleton):
             return
 
         with self._frame_lock:
-            self._bgr_frame = frame.copy() if copy else frame
+            if copy:
+                self._bgr_frame = frame.copy()
+            else:
+                self._bgr_frame = frame
+
+    def draw_debug_frame(self, boxes: list[DebugBox], texts: list[DebugText]) -> None:
+        if not DEBUG or self._display_sink is None:
+            return
+
+        with self._frame_lock:
+            if self._bgr_frame is None or self._last_debug_frame_version == self._frame_version:
+                return
+
+            frame = self._bgr_frame
+            self._last_debug_frame_version = self._frame_version
+
+        self.__show_debug_frame(frame, boxes, texts)
 
     def __connect_video_sink(self, sink: QVideoSink | None) -> None:
         if self._video_sink is sink:
@@ -167,13 +187,42 @@ class CameraManager(Singleton):
         self.__connect_video_sink(QVideoSink())
         self._capture_session.setVideoSink(self._video_sink)
 
-    def __show_debug_frame(self, frame: np.ndarray) -> None:
-        if self._display_sink is None:
-            return
-
+    def __show_debug_frame(self, frame: np.ndarray, boxes: list[DebugBox], texts: list[DebugText]) -> None:
         height, width = frame.shape[:2]
         image = QImage(frame.data, width, height, frame.strides[0], QImage.Format.Format_BGR888).copy()
+        buffer = np.frombuffer(image.bits(), dtype=np.uint8, count=image.sizeInBytes())
+        debug_frame = buffer.reshape(height, image.bytesPerLine())[:, : width * 3].reshape(height, width, 3)
+        self.__draw_debug_overlay(debug_frame, boxes, texts)
         self._display_sink.setVideoFrame(QVideoFrame(image))
+
+    def __draw_debug_overlay(self, frame: np.ndarray, boxes: list[DebugBox], texts: list[DebugText]) -> None:
+        for box in boxes:
+            self.__draw_box(frame, box.bbox, box.color, box.label)
+
+        for text in texts:
+            self.__draw_text(frame, text.text, text.origin, text.color)
+
+    def __draw_box(self, frame: np.ndarray, bbox: list[float], color: tuple[int, int, int], label: str) -> None:
+        frame_height, frame_width = frame.shape[:2]
+        x1, y1, x2, y2 = [int(value) for value in bbox]
+        x1 = max(0, min(frame_width - 1, x1))
+        y1 = max(0, min(frame_height - 1, y1))
+        x2 = max(0, min(frame_width - 1, x2))
+        y2 = max(0, min(frame_height - 1, y2))
+        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+        self.__draw_text(frame, label, (x1, max(20, y1 - 8)), color)
+
+    def __draw_text(self, frame: np.ndarray, text: str, origin: tuple[int, int], color: tuple[int, int, int]) -> None:
+        cv2.putText(
+            frame,
+            text,
+            origin,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            color,
+            2,
+            cv2.LINE_AA,
+        )
 
     def __on_video_frame_changed(self, video_frame: QVideoFrame) -> None:
         if not video_frame.isValid():
@@ -188,22 +237,13 @@ class CameraManager(Singleton):
         height = image.height()
         bytes_per_line = image.bytesPerLine()
 
-        buffer = np.frombuffer(
-            image.bits(),
-            dtype=np.uint8,
-            count=image.sizeInBytes(),
-        )
+        buffer = np.frombuffer(image.bits(), dtype=np.uint8, count=image.sizeInBytes())
         bgr_frame = buffer.reshape(height, bytes_per_line)[:, : width * 3]
         bgr_frame = bgr_frame.reshape(height, width, 3).copy()
 
         with self._frame_lock:
             self._bgr_frame = bgr_frame
-
-        # AI 테스트를 위해 detector를 호출하여 프레임을 처리합니다.
-        self._detector.run(bgr_frame)  # Call the detector with the new frame
-        if DEBUG:
-            self.set_frame(bgr_frame, copy=False)
-            self.__show_debug_frame(bgr_frame)
+            self._frame_version += 1
         
 
     def __on_camera_error(self, error: QCamera.Error, message: str) -> None:

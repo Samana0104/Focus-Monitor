@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any
 
@@ -36,3 +37,17 @@ class DetectionResult:
         self.label = label
         self.triggered = triggered
         self.metadata = metadata
+
+
+@dataclass(slots=True)
+class DebugBox:
+    bbox: list[float]
+    color: tuple[int, int, int]
+    label: str
+
+
+@dataclass(slots=True)
+class DebugText:
+    text: str
+    origin: tuple[int, int]
+    color: tuple[int, int, int]
