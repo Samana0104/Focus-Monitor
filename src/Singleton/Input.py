@@ -131,4 +131,4 @@ class Input(Singleton):
         return button_key.value if hasattr(button_key, "value") else button_key
 
 
-input_instance: Input = Input.get_instance()
+input_manager: Input = Input.get_instance()

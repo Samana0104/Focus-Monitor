@@ -5,7 +5,7 @@ from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import QApplication
 from Singleton.EffectSound import effect_sound
 from Singleton.Bgm import bgm_manager
-from Singleton.Input import Input, input_instance
+from Singleton.Input import input_manager
 from System.FunctionLibrary import FunctionLibrary
 from Singleton.Settings import settings_instance
 from Singleton.Timer import timer_manager
@@ -15,7 +15,6 @@ class Application:
     def __init__(self):
         self._running : bool = False
         self._qt_app : QApplication = QApplication(sys.argv)
-        self._input: Input = input_instance
         self._ui : UIHandler = UIHandler()
 
         self._timer: QTimer = QTimer()
@@ -28,16 +27,12 @@ class Application:
     def is_running(self) -> bool:
         return self._running
 
-    @property
-    def input(self) -> Input:
-        return self._input
-
     def initialize(self) -> None:
         """Initialize and show application resources once."""
 
         System.FunctionLibrary.log("Application is starting...", System.LogLevel.NONE)
         settings_instance.load()
-        self._input.initialize(self._qt_app)
+        input_manager.initialize(self._qt_app)
         bgm_manager.initialize(self._qt_app)
         effect_sound.initialize(self._qt_app)
         self._ui.initialize()
@@ -55,7 +50,7 @@ class Application:
         """Release UI resources once."""
         self._timer.stop()
         timer_manager.stop()
-        self._input.shutdown()
+        input_manager.shutdown()
         bgm_manager.shutdown()
         effect_sound.shutdown()
         self._ui.shutdown()
@@ -73,7 +68,7 @@ class Application:
             self.stop()
             raise
         finally:
-            self._input.end_frame()
+            input_manager.end_frame()
 
 
     def run(self) -> int:
@@ -88,10 +83,8 @@ class Application:
         interval_ms: int = max(1, round(1000 / target_fps))
         self._timer.start(interval_ms)
 
-        self._ui.show_popup(
-            title="OnDevice-AI",
-            reason="Application is starting...",
-        )
+        self._ui.show_popup(title="가이드", 
+                            reason="디버그 모드\n1번 버튼 : 부재 감지\n2번 버튼 : 졸음 감지\n3번 버튼 : 휴대폰 감지")
         try:
             return self._qt_app.exec()
         except Exception as e:
