@@ -3,12 +3,10 @@ import System
 
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import QApplication
-from Singleton.Bgm import Bgm, bgm_instance
-from Singleton.EffectSound import EffectSound, effect_sound_instance
-from Singleton.Events import event_manager
+from Singleton.EffectSound import effect_sound
+from Singleton.Bgm import bgm_manager
 from Singleton.Input import Input, input_instance
 from System.FunctionLibrary import FunctionLibrary
-from System.Define import EventKey
 from Singleton.Settings import settings_instance
 from Singleton.Timer import timer_manager
 from UI.UIHandler import UIHandler
@@ -17,8 +15,6 @@ class Application:
     def __init__(self):
         self._running : bool = False
         self._qt_app : QApplication = QApplication(sys.argv)
-        self._bgm: Bgm = bgm_instance
-        self._effect_sound: EffectSound = effect_sound_instance
         self._input: Input = input_instance
         self._ui : UIHandler = UIHandler()
 
@@ -33,14 +29,6 @@ class Application:
         return self._running
 
     @property
-    def bgm(self) -> Bgm:
-        return self._bgm
-
-    @property
-    def effect_sound(self) -> EffectSound:
-        return self._effect_sound
-
-    @property
     def input(self) -> Input:
         return self._input
 
@@ -50,16 +38,14 @@ class Application:
         System.FunctionLibrary.log("Application is starting...", System.LogLevel.NONE)
         settings_instance.load()
         self._input.initialize(self._qt_app)
-        self._bgm.initialize(self._qt_app)
-        self._effect_sound.initialize(self._qt_app)
+        bgm_manager.initialize(self._qt_app)
+        effect_sound.initialize(self._qt_app)
         self._ui.initialize()
 
         timer_manager.start()
 
     def __update(self) -> None:
-        if self._input.consume_mouse_button_press(Qt.MouseButton.LeftButton):
-            self._effect_sound.play("notification.wav")
-            event_manager.publish(EventKey.DROWSY_DETECTED.value)
+        pass
 
     def __render(self) -> None:
         self._ui.render()
@@ -70,8 +56,8 @@ class Application:
         self._timer.stop()
         timer_manager.stop()
         self._input.shutdown()
-        self._bgm.shutdown()
-        self._effect_sound.shutdown()
+        bgm_manager.shutdown()
+        effect_sound.shutdown()
         self._ui.shutdown()
 
     def __tick(self) -> None:
@@ -102,6 +88,11 @@ class Application:
         interval_ms: int = max(1, round(1000 / target_fps))
         self._timer.start(interval_ms)
 
+        FunctionLibrary.show_popup(
+            title="OnDevice-AI",
+            reason="Application is starting...",
+            parent=None
+        )
         try:
             return self._qt_app.exec()
         except Exception as e:
