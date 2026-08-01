@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from System.Define import DetectionResult
+from System.Define import DetectionResult, LogLevel
 
 import mediapipe as mp
 from mediapipe.tasks import python
@@ -7,6 +7,8 @@ from mediapipe.tasks.python import vision
 import cv2  
 
 import numpy as np
+import torch
+import onnxruntime as ort
 from Singleton.Settings import settings_instance
 from System.FunctionLibrary import FunctionLibrary
 from insightface.app import FaceAnalysis
@@ -107,21 +109,50 @@ class AbsenceDetecter(BaseDetector):
         self._known_emb = None
         self.face_bbox = None
         self.face_embedding = None
-        # Load InsightFace Model
-        self._app = FaceAnalysis(
-            name="buffalo_l",
-            providers=["CPUExecutionProvider"]
-        )
-        self._app.prepare(
-            ctx_id=0,
-            det_size=(640, 640)
-        )
+        available_providers = ort.get_available_providers()
+        self._use_cuda = "CUDAExecutionProvider" in available_providers
+        self._app = self.__create_face_analysis()
 
-    def get_embedding(self, image) -> tuple[bool, np.ndarray, list]:
+        FunctionLibrary.log(f"ONNX Runtime {ort.__version__} providers: {available_providers}")
+
+    def __create_face_analysis(self) -> FaceAnalysis:
+        if self._use_cuda:
+            providers = ["CUDAExecutionProvider", "CPUExecutionProvider"]
+            ctx_id = 0
+        else:
+            providers = ["CPUExecutionProvider"]
+            ctx_id = -1
+
+        try:
+            app = FaceAnalysis(name="buffalo_l", providers=providers)
+            app.prepare(ctx_id=ctx_id, det_size=(640, 640))
+
+            sessions = (
+                getattr(model, "session", None)
+                for model in app.models.values()
+            )
+            self._use_cuda = any("CUDAExecutionProvider" in session.get_providers() for session in sessions if session is not None)
+        except Exception as error:
+            if not self._use_cuda:
+                raise
+
+            FunctionLibrary.log(f"InsightFace CUDA initialization failed; falling back to CPU: {error}", LogLevel.WARNING)
+            self._use_cuda = False
+            app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
+            app.prepare(ctx_id=-1, det_size=(640, 640))
+
+        if self._use_cuda:
+            device_name = "GPU (CUDA)"
+        else:
+            device_name = "CPU"
+        FunctionLibrary.log(f"InsightFace device: {device_name}")
+        return app
+
+    def get_embedding(self, image: np.ndarray) -> tuple[bool, np.ndarray | None, list[float] | None]:
         """
         Gets the normlized embedding of the largest face found.
         """
-        faces = self._app(image)
+        faces = self._app.get(image)
         
         if len(faces) == 0:
             return (False, None, None)
@@ -132,9 +163,12 @@ class AbsenceDetecter(BaseDetector):
         )
 
         face = faces[0]
-        embedding = face.embedding
+        embedding = face.normed_embedding
+        if embedding is None:
+            return (False, None, None)
+
         bbox = face.bbox.tolist()
-        return (True, embedding / np.linalg.norm(embedding), bbox)
+        return (True, embedding, bbox)
 
 
     def register_face(self, frame) -> bool:
@@ -142,8 +176,7 @@ class AbsenceDetecter(BaseDetector):
         Register user face. 
         - returns True if succeeded
         """
-        cvt_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        ret, embedding, _ = self.get_embedding(cvt_image)
+        ret, embedding, _ = self.get_embedding(frame)
         if ret:
             self._known_emb = embedding
 
@@ -158,8 +191,8 @@ class AbsenceDetecter(BaseDetector):
         metadata = {"similarity": 0.0}
         self.face_bbox = None
         
-        cvt_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        ret, test_emb, bbox = self.get_embedding(cvt_image)
+        ret, test_emb, bbox = self.get_embedding(frame)
+
         if ret and self._known_emb is not None:
             self.face_bbox = bbox
             similarity = self.cosine_similarity(self._known_emb, test_emb)
@@ -177,7 +210,17 @@ class AbsenceDetecter(BaseDetector):
 
 class PhoneDetecter(BaseDetector):
     def __init__(self):
-        self._model = YOLO("yolov11n.pt")
+        path : str = str(FunctionLibrary.get_ai_path() / "yolov11n.pt")
+        cuda_available = torch.cuda.is_available()
+        if cuda_available:
+            self._device = "cuda:0"
+            device_name = "GPU (CUDA:0)"
+        else:
+            self._device = "cpu"
+            device_name = "CPU"
+        self._model = YOLO(path)
+        FunctionLibrary.log(f"YOLO device: {device_name}")
+        FunctionLibrary.log(f"PyTorch {torch.__version__}, CUDA build: {torch.version.cuda}, CUDA available: {cuda_available}")
 
     def detect(self, frame, face_bbox=None) -> DetectionResult:
         label = "phone_detected"
@@ -187,7 +230,14 @@ class PhoneDetecter(BaseDetector):
         if face_bbox is None:
             return DetectionResult(label, triggered, metadata)
 
-        results = self._model(frame)
+        results = self._model.predict(
+            frame,
+            imgsz=640,
+            classes=[int(settings_instance.ai_params["cell_phone_class"])],
+            conf=0.2,
+            device=self._device,
+            verbose=True,
+        )
 
         face_x1, face_y1, face_x2, face_y2 = [float(value) for value in face_bbox]
         face_x = (face_x1 + face_x2) / 2.0
