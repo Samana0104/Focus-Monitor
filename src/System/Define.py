@@ -1,4 +1,5 @@
 from enum import Enum, auto
+from typing import Any
 
 
 DEBUG = True
@@ -31,7 +32,7 @@ class EventKey(Enum):
 class DetectionResult:
     """Result returned by one detector for one camera frame."""
 
-    def __init__(self, label, triggered, metadata):
+    def __init__(self, label: str, triggered: bool, metadata: dict[str, Any]) -> None:
         self.label = label
         self.triggered = triggered
         self.metadata = metadata

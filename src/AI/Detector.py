@@ -1,5 +1,8 @@
 from abc import ABC, abstractmethod
-from System.Define import DetectionResult, LogLevel
+from typing import Any, Sequence
+
+from PySide6.QtCore import Qt
+from System.Define import DEBUG, DetectionResult, LogLevel
 
 import mediapipe as mp
 from mediapipe.tasks import python
@@ -10,23 +13,24 @@ import numpy as np
 import torch
 import onnxruntime as ort
 from Singleton.Settings import settings_instance
+from Singleton.Input import input_manager
 from System.FunctionLibrary import FunctionLibrary
 from insightface.app import FaceAnalysis
 from ultralytics import YOLO
 
 class BaseDetector(ABC):
     @abstractmethod
-    def detect(self, frame) -> DetectionResult:
+    def detect(self, frame: np.ndarray) -> DetectionResult:
         ...
 
 class DetectionPipeline:
-    def __init__(self):
-        self._face_bbox = None
+    def __init__(self) -> None:
+        self._face_bbox: list[float] | None = None
         self._absence_detector = AbsenceDetecter()
         self._eye_detector = EyeDetecter()
         self._phone_detector = PhoneDetecter()
 
-    def run(self, frame) -> list[DetectionResult]:
+    def run(self, frame: np.ndarray) -> list[DetectionResult]:
         """
         주어진 frame에 대해 detecter들의 detect 결과를 반환한다.
         """
@@ -35,10 +39,73 @@ class DetectionPipeline:
 
         eye_result = self._eye_detector.detect(frame, self._face_bbox)
         phone_result = self._phone_detector.detect(frame, self._face_bbox)
+        if DEBUG:
+            self.__draw_debug_overlay(frame, absence_result, eye_result, phone_result)
+
         return [absence_result, eye_result, phone_result]
 
+    def __draw_debug_overlay(self, frame: np.ndarray, absence_result: DetectionResult, eye_result: DetectionResult, phone_result: DetectionResult) -> None:
+        # Face detection overlay
+        # 1번 key를 눌렀을 때만 얼굴 인식 상태를 표시하도록
+        if input_manager.is_key_down(Qt.Key.Key_1):
+            face_bbox = absence_result.metadata.get("bbox")
+            if face_bbox is None:
+                self.__draw_text(frame, "FACE: NOT FOUND", (20, 30), (0, 0, 255))
+            else:
+                similarity = float(absence_result.metadata.get("similarity", 0.0))
+                if absence_result.triggered:
+                    face_color = (0, 0, 255)
+                else:
+                    face_color = (0, 255, 0)
+                self.__draw_box(frame, face_bbox, face_color, f"FACE {similarity:.2f}")
+
+
+        # Eye detection overlay
+        # 2번 key를 눌렀을 때만 눈 감김 상태를 표시하도록
+        if input_manager.is_key_down(Qt.Key.Key_2):
+            if eye_result.triggered:
+                eye_color = (0, 0, 255)
+            else:
+                eye_color = (0, 255, 255)
+            ear = float(eye_result.metadata.get("ear", 0.0))
+            for eye_bbox in eye_result.metadata.get("eye_boxes", []):
+                self.__draw_box(frame, eye_bbox, eye_color, f"EYE {ear:.2f}")
+
+        # Phone detection overlay
+        # 3번 key를 눌렀을 때만 휴대폰 인식 상태를 표시하도록
+        if input_manager.is_key_down(Qt.Key.Key_3):
+            if phone_result.triggered:
+                phone_color = (0, 0, 255)
+            else:
+                phone_color = (255, 128, 0)
+            for phone in phone_result.metadata.get("boxes", []):
+                confidence = float(phone.get("confidence", 0.0))
+                self.__draw_box(frame, phone["bbox"], phone_color, f"PHONE {confidence:.2f}")
+
+    def __draw_box(self, frame: np.ndarray, bbox: Sequence[float], color: tuple[int, int, int], label: str) -> None:
+        frame_height, frame_width = frame.shape[:2]
+        x1, y1, x2, y2 = [int(value) for value in bbox]
+        x1 = max(0, min(frame_width - 1, x1))
+        y1 = max(0, min(frame_height - 1, y1))
+        x2 = max(0, min(frame_width - 1, x2))
+        y2 = max(0, min(frame_height - 1, y2))
+        cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
+        self.__draw_text(frame, label, (x1, max(20, y1 - 8)), color)
+
+    def __draw_text(self, frame: np.ndarray, text: str, origin: tuple[int, int], color: tuple[int, int, int]) -> None:
+        cv2.putText(
+            frame,
+            text,
+            origin,
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.55,
+            color,
+            2,
+            cv2.LINE_AA,
+        )
+
 class EyeDetecter(BaseDetector):
-    def __init__(self):
+    def __init__(self) -> None:
         model_path = FunctionLibrary.get_ai_path() / "face_landmarker_v2_with_blendshapes.task"
         base_options = python.BaseOptions(model_asset_path=str(model_path))
         options = vision.FaceLandmarkerOptions(base_options=base_options,
@@ -47,10 +114,10 @@ class EyeDetecter(BaseDetector):
                                             num_faces=1)
         self._detector = vision.FaceLandmarker.create_from_options(options)
 
-    def length(self, p1, p2):
+    def length(self, p1: Any, p2: Any) -> float:
         return ((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2) ** 0.5
 
-    def calculate_ear(self, landmarks, eye_indices):
+    def calculate_ear(self, landmarks: Sequence[Any], eye_indices: Sequence[int]) -> float:
         left = landmarks[eye_indices[0]]
         top_left = landmarks[eye_indices[1]]
         top_right = landmarks[eye_indices[2]]
@@ -63,13 +130,13 @@ class EyeDetecter(BaseDetector):
 
         return v_len / h_len
 
-    def detect(self, frame, face_bbox=None) -> DetectionResult:
+    def detect(self, frame: np.ndarray, face_bbox: Sequence[float] | None = None) -> DetectionResult:
         """
         Take a frame and decide if the eyes are closed.
         """
         label = "eyes_closed"
         triggered = False
-        metadata = {"ear": 0.0}
+        metadata = {"ear": 0.0, "eye_boxes": []}
 
         if face_bbox is None:
             return DetectionResult(label, triggered, metadata)
@@ -99,16 +166,23 @@ class EyeDetecter(BaseDetector):
             ear = (left_ear + right_ear) / 2.0
             metadata["ear"] = ear
 
+            face_height, face_width = face_frame.shape[:2]
+            for eye_indices in (left_eye_indices, right_eye_indices):
+                eye_points = [(int(x1 + landmarks[index].x * face_width), int(y1 + landmarks[index].y * face_height)) for index in eye_indices]
+                eye_x_values = [point[0] for point in eye_points]
+                eye_y_values = [point[1] for point in eye_points]
+                metadata["eye_boxes"].append([min(eye_x_values), min(eye_y_values), max(eye_x_values), max(eye_y_values)])
+
             if ear < float(settings_instance.ai_params["ear_threshold"]):
                 triggered = True
 
         return DetectionResult(label, triggered, metadata)
 
 class AbsenceDetecter(BaseDetector):
-    def __init__(self):
-        self._known_emb = None
-        self.face_bbox = None
-        self.face_embedding = None
+    def __init__(self) -> None:
+        self._known_emb: np.ndarray | None = None
+        self.face_bbox: list[float] | None = None
+        self.face_embedding: np.ndarray | None = None
         available_providers = ort.get_available_providers()
         self._use_cuda = "CUDAExecutionProvider" in available_providers
         self._app = self.__create_face_analysis()
@@ -171,30 +245,31 @@ class AbsenceDetecter(BaseDetector):
         return (True, embedding, bbox)
 
 
-    def register_face(self, frame) -> bool:
+    def register_face(self, frame: np.ndarray) -> bool:
         """
         Register user face. 
         - returns True if succeeded
         """
         ret, embedding, _ = self.get_embedding(frame)
         if ret:
-            self._known_emb = embedding
+            self._known_emb = embedding.copy()
 
         return ret
 
-    def cosine_similarity(self, a, b):
-        return np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b))
+    def cosine_similarity(self, a: np.ndarray, b: np.ndarray) -> float:
+        return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
-    def detect(self, frame) -> DetectionResult:
+    def detect(self, frame: np.ndarray) -> DetectionResult:
         label = "absent"
         triggered = True
-        metadata = {"similarity": 0.0}
+        metadata = {"similarity": 0.0, "bbox": None}
         self.face_bbox = None
         
         ret, test_emb, bbox = self.get_embedding(frame)
 
         if ret and self._known_emb is not None:
             self.face_bbox = bbox
+            metadata["bbox"] = bbox
             similarity = self.cosine_similarity(self._known_emb, test_emb)
             metadata["similarity"] = similarity
             if similarity > float(settings_instance.ai_params["similarity_threshold"]):
@@ -203,14 +278,19 @@ class AbsenceDetecter(BaseDetector):
                 triggered = True
         elif ret:
             self.face_bbox = bbox
+            metadata["bbox"] = bbox
+            metadata["similarity"] = 1.0
+            self._known_emb = test_emb.copy()
+            triggered = False
+            FunctionLibrary.log("Reference face registered automatically.")
         else:
             triggered = True
 
         return DetectionResult(label, triggered, metadata)
 
 class PhoneDetecter(BaseDetector):
-    def __init__(self):
-        path : str = str(FunctionLibrary.get_ai_path() / "yolov11n.pt")
+    def __init__(self) -> None:
+        path: str = str(FunctionLibrary.get_ai_path() / "yolov11n.pt")
         cuda_available = torch.cuda.is_available()
         if cuda_available:
             self._device = "cuda:0"
@@ -222,21 +302,22 @@ class PhoneDetecter(BaseDetector):
         FunctionLibrary.log(f"YOLO device: {device_name}")
         FunctionLibrary.log(f"PyTorch {torch.__version__}, CUDA build: {torch.version.cuda}, CUDA available: {cuda_available}")
 
-    def detect(self, frame, face_bbox=None) -> DetectionResult:
+    def detect(self, frame: np.ndarray, face_bbox: Sequence[float] | None = None) -> DetectionResult:
         label = "phone_detected"
         triggered = False
-        metadata = {"confidence": 0.0, "norm_distance": 0.0}
+        metadata = {"confidence": 0.0, "norm_distance": 0.0, "boxes": []}
 
         if face_bbox is None:
             return DetectionResult(label, triggered, metadata)
 
+        phone_confidence_threshold = float(settings_instance.ai_params.get("phone_confidence_threshold", 0.2))
         results = self._model.predict(
             frame,
             imgsz=640,
             classes=[int(settings_instance.ai_params["cell_phone_class"])],
-            conf=0.2,
+            conf=phone_confidence_threshold,
             device=self._device,
-            verbose=True,
+            verbose=False,
         )
 
         face_x1, face_y1, face_x2, face_y2 = [float(value) for value in face_bbox]
@@ -255,6 +336,9 @@ class PhoneDetecter(BaseDetector):
                     continue
 
                 phone_x1, phone_y1, phone_x2, phone_y2 = box.xyxy[0].tolist()
+                confidence = float(box.conf[0].item())
+                metadata["confidence"] = max(metadata["confidence"], confidence)
+                metadata["boxes"].append({"bbox": [phone_x1, phone_y1, phone_x2, phone_y2], "confidence": confidence})
                 phone_x = (phone_x1 + phone_x2) / 2.0
                 phone_y = (phone_y1 + phone_y2) / 2.0
                 distance = ((phone_x - face_x) ** 2 + (phone_y - face_y) ** 2) ** 0.5

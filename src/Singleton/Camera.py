@@ -12,9 +12,9 @@ from PySide6.QtMultimedia import (
 )
 
 from Singleton.Singleton import Singleton
-from System.Define import LogLevel
+from System.Define import DEBUG, LogLevel
 from System.FunctionLibrary import FunctionLibrary
-from AI.Detector import EyeDetecter
+from AI.Detector import DetectionPipeline
 
 
 class CameraManager(Singleton):
@@ -30,11 +30,12 @@ class CameraManager(Singleton):
         self._capture_session: QMediaCaptureSession | None = None
         self._video_output: Any | None = None
         self._video_sink: QVideoSink | None = None
+        self._display_sink: QVideoSink | None = None
         self._frame_lock = Lock()
         self._bgr_frame: np.ndarray | None = None
         self._last_error = ""
 
-        self._detector: EyeDetecter = EyeDetecter()  # Initialize the detector here
+        self._detector: DetectionPipeline = DetectionPipeline()  # Initialize the detector here
 
     @property
     def is_running(self) -> bool:
@@ -47,12 +48,20 @@ class CameraManager(Singleton):
     def set_video_output(self, output: Any) -> None:
         """Attach a QVideoWidget (or another Qt multimedia video output)."""
         self._video_output = output
+        if hasattr(output, "videoSink"):
+            self._display_sink = output.videoSink()
+        else:
+            self._display_sink = None
 
         if self._capture_session is not None:
-            self._capture_session.setVideoOutput(output)
+            if DEBUG:
+                self.__attach_debug_video_sink()
+            else:
+                self._capture_session.setVideoOutput(output)
+                self.__connect_video_sink(self._display_sink)
 
-        sink = output.videoSink() if hasattr(output, "videoSink") else None
-        self.__connect_video_sink(sink)
+        elif not DEBUG:
+            self.__connect_video_sink(self._display_sink)
 
     def run(self) -> bool:
         if self._running:
@@ -70,14 +79,11 @@ class CameraManager(Singleton):
         self._capture_session.setCamera(self._camera)
 
         if self._video_output is not None:
-            self._capture_session.setVideoOutput(self._video_output)
-
-            if hasattr(self._video_output, "videoSink"):
-                sink = self._video_output.videoSink()
+            if DEBUG:
+                self.__attach_debug_video_sink()
             else:
-                sink = None
-
-            self.__connect_video_sink(sink)
+                self._capture_session.setVideoOutput(self._video_output)
+                self.__connect_video_sink(self._display_sink)
         else:
             self.__connect_video_sink(QVideoSink())
             self._capture_session.setVideoSink(self._video_sink)
@@ -97,11 +103,13 @@ class CameraManager(Singleton):
         if self._capture_session is not None:
             self._capture_session.setCamera(None)
             self._capture_session.setVideoOutput(None)
+            self._capture_session.setVideoSink(None)
             self._capture_session.deleteLater()
 
         self.__connect_video_sink(None)
         self._camera = None
         self._capture_session = None
+        self._display_sink = None
 
         with self._frame_lock:
             self._bgr_frame = None
@@ -151,6 +159,22 @@ class CameraManager(Singleton):
         if self._video_sink is not None:
             self._video_sink.videoFrameChanged.connect(self.__on_video_frame_changed)
 
+    def __attach_debug_video_sink(self) -> None:
+        if self._capture_session is None:
+            return
+
+        self._capture_session.setVideoOutput(None)
+        self.__connect_video_sink(QVideoSink())
+        self._capture_session.setVideoSink(self._video_sink)
+
+    def __show_debug_frame(self, frame: np.ndarray) -> None:
+        if self._display_sink is None:
+            return
+
+        height, width = frame.shape[:2]
+        image = QImage(frame.data, width, height, frame.strides[0], QImage.Format.Format_BGR888).copy()
+        self._display_sink.setVideoFrame(QVideoFrame(image))
+
     def __on_video_frame_changed(self, video_frame: QVideoFrame) -> None:
         if not video_frame.isValid():
             return
@@ -176,7 +200,10 @@ class CameraManager(Singleton):
             self._bgr_frame = bgr_frame
 
         # AI 테스트를 위해 detector를 호출하여 프레임을 처리합니다.
-        self._detector.detect(bgr_frame)  # Call the detector with the new frame
+        self._detector.run(bgr_frame)  # Call the detector with the new frame
+        if DEBUG:
+            self.set_frame(bgr_frame, copy=False)
+            self.__show_debug_frame(bgr_frame)
         
 
     def __on_camera_error(self, error: QCamera.Error, message: str) -> None:
