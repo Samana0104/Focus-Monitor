@@ -8,7 +8,7 @@ pandas
 opencv-python
 mediapipe
 pyside6
-onnxruntime
 insightface
 ultralytics
 pytest
+# Torch and ONNX Runtime are selected by library_installer.bat for GPU or CPU.
