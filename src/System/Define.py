@@ -24,6 +24,8 @@ class EventKey(Enum):
     DROWSY_DETECTED : str = "DROWSY_DETECTED"
     PHONE_DETECTED : str = "PHONE_DETECTED"
     ALERT_CLEARED : str = "ALERT_CLEARED"
+    START_REQUESTED : str = "START_REQUESTED"
+    BREAK_REQUESTED : str = "BREAK_REQUESTED"
 
 
 class DetectionResult:
