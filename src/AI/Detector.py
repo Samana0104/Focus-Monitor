@@ -133,7 +133,7 @@ class AbsenceDetecter(BaseDetector):
             ctx_id = -1
 
         try:
-            app = FaceAnalysis(name="buffalo_l", providers=providers)
+            app = FaceAnalysis(name="buffalo_l", allowed_modules=["detection", "recognition"], providers=providers)
             app.prepare(ctx_id=ctx_id, det_size=(640, 640))
 
             sessions = (
@@ -147,7 +147,7 @@ class AbsenceDetecter(BaseDetector):
 
             FunctionLibrary.log(f"InsightFace CUDA initialization failed; falling back to CPU: {error}", LogLevel.WARNING)
             self._use_cuda = False
-            app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
+            app = FaceAnalysis(name="buffalo_l", allowed_modules=["detection", "recognition"], providers=["CPUExecutionProvider"])
             app.prepare(ctx_id=-1, det_size=(640, 640))
 
         if self._use_cuda:
