@@ -24,12 +24,12 @@
         "PHONE_DETECTED": {
             "title": "휴대폰 감지",
             "detail": "휴대폰을 사용하고 있습니다.",
-            "icon_name": "sleeping.png"
+            "icon_name": "phone.png"
         },
         "ALERT_CLEARED": {
             "title": "상태 정상",
             "detail": "이상 상태가 해제되었습니다.",
-            "icon_name": "sleeping.png"
+            "icon_name": "thumbs_up.png"
         },
         "START_REQUESTED": {
             "title": "집중 시작",
