@@ -1,43 +1,31 @@
 """Simple concentration state machine for one study session."""
 
 from datetime import datetime, timedelta, timezone
-from enum import Enum
 
-from System.Define import LogLevel
+from Singleton.Events import event_manager
+from Singleton.Settings import settings_instance
+from System.Define import AlertLevel, DetectionResult, EventKey, FocusState, LogLevel
 from System.FunctionLibrary import FunctionLibrary
 
 
-class FocusState(Enum):
-    FOCUSED = "focused"
-    PHONE = "phone"
-    DROWSY = "drowsy"
-    ABSENT = "absent"
-
-
-class AlertLevel(Enum):
-    NONE = 0
-    WARNING = 1
-    ALERT = 2
-
-
 class StateInterval:
-    def __init__(self, state, started_at):
-        self.state = state
-        self.started_at = started_at
-        self.ended_at = None
+    def __init__(self, state: FocusState, started_at: datetime) -> None:
+        self.state: FocusState = state
+        self.started_at: datetime = started_at
+        self.ended_at: datetime | None = None
 
 
 class FocusReport:
-    def __init__(self, started_at, ended_at, durations, focus_ratio, timeline):
-        self.session_started_at = started_at
-        self.session_ended_at = ended_at
-        self.total_duration = ended_at - started_at
-        self.duration_by_state = durations
-        self.focus_ratio = focus_ratio
-        self.timeline = timeline
+    def __init__(self, started_at: datetime, ended_at: datetime, durations: dict[FocusState, timedelta], focus_ratio: float, timeline: list[StateInterval]) -> None:
+        self.session_started_at: datetime = started_at
+        self.session_ended_at: datetime = ended_at
+        self.total_duration: timedelta = ended_at - started_at
+        self.duration_by_state: dict[FocusState, timedelta] = durations
+        self.focus_ratio: float = focus_ratio
+        self.timeline: list[StateInterval] = timeline
 
-        self.distraction_count = 0
-        self.drowsiness_count = 0
+        self.distraction_count: int = 0
+        self.drowsiness_count: int = 0
         for interval in timeline:
             if interval.state != FocusState.FOCUSED:
                 self.distraction_count += 1
@@ -48,27 +36,17 @@ class FocusReport:
 class FocusStateMachine:
     """
     State priority: ABSENT > DROWSY > PHONE > FOCUSED.
-    The caller should call ``update(results, timestamp)`` once per frame.
+    State entry and release use separate duration thresholds.
     """
-    DEFAULT_ENTER_SECONDS = {
-        FocusState.ABSENT: 3,
-        FocusState.DROWSY: 3,
-        FocusState.PHONE: 2,
-    }
-    DEFAULT_EXIT_SECONDS = {
-        FocusState.ABSENT: 1,
-        FocusState.DROWSY: 1,
-        FocusState.PHONE: 1,
-    }
 
-    def __init__(self):
-        self.enter_seconds = self.DEFAULT_ENTER_SECONDS.copy()
-        self.exit_seconds = self.DEFAULT_EXIT_SECONDS.copy()
-        self.warning_seconds = 5
-        self.alert_seconds = 15
+    def __init__(self) -> None:
+        self.enter_seconds: dict[FocusState, float] = {}
+        self.release_seconds: dict[FocusState, float] = {}
+        self.warning_seconds: float = 5.0
+        self.alert_seconds: float = 15.0
         self.reset()
 
-    def start_session(self, started_at=None):
+    def start_session(self, started_at: datetime | None = None) -> None:
         """
         Start a new session.
         """
@@ -79,7 +57,7 @@ class FocusStateMachine:
         self.last_timestamp = started_at
         self.timeline.append(StateInterval(FocusState.FOCUSED, started_at))
 
-    def update(self, results, timestamp=None):
+    def update(self, results: list[DetectionResult], timestamp: datetime | None = None) -> FocusState:
         """
         Try and update the state by every frame.
         """
@@ -90,26 +68,14 @@ class FocusStateMachine:
         if timestamp < self.last_timestamp:
             raise ValueError("timestamps must be in chronological order")
         self.last_timestamp = timestamp
+        self.__load_state_seconds()
 
-        observed_state = self._choose_state(results)
+        observed_state: FocusState = self._choose_state(results)
         if observed_state == self.state:
-            # discard candidate if current state maintains.
-            self.candidate_state = None
-            self.candidate_started_at = None
+            self.__reset_transition()
         else:
-            if observed_state != self.candidate_state:
-                # override candidate
-                self.candidate_state = observed_state
-                self.candidate_started_at = timestamp
-
-            if observed_state == FocusState.FOCUSED:
-                needed_seconds = self.exit_seconds.get(self.state, 0)
-            else:
-                needed_seconds = self.enter_seconds.get(observed_state, 0)
-
-            passed_seconds = (timestamp - self.candidate_started_at).total_seconds()
-            if passed_seconds >= needed_seconds:
-                # promote candidate to new state
+            self.__update_transition(observed_state, timestamp)
+            if self.__can_change_state(observed_state, timestamp):
                 self._change_state(observed_state, timestamp)
 
         if self.state != FocusState.FOCUSED:
@@ -126,8 +92,12 @@ class FocusStateMachine:
                     FunctionLibrary.log(f"{self.state.name}_WARNING", LogLevel.WARNING)
                 elif next_alert == AlertLevel.ALERT:
                     FunctionLibrary.log(f"{self.state.name}_ALERT", LogLevel.DANGER)
+        else:
+            self.alert_level = AlertLevel.NONE
 
-    def end_session(self, ended_at=None):
+        return self.state
+
+    def end_session(self, ended_at: datetime | None = None) -> FocusReport:
         """
         End the current session.
         """
@@ -140,38 +110,38 @@ class FocusStateMachine:
 
         self._close_interval(ended_at)
         self.last_timestamp = ended_at
-        durations = {}      # accumulative durations for each state
+        durations: dict[FocusState, timedelta] = {}
         for state in FocusState:
             durations[state] = timedelta()
         for interval in self.timeline:
-            durations[interval.state] += interval.ended_at - interval.started_at
+            if interval.ended_at is not None:
+                durations[interval.state] += interval.ended_at - interval.started_at
 
-        total_duration = ended_at - self.session_started_at
+        total_duration: timedelta = ended_at - self.session_started_at
         if total_duration > timedelta():
-            focus_ratio = durations[FocusState.FOCUSED] / total_duration
+            focus_ratio: float = durations[FocusState.FOCUSED] / total_duration
         else:
             focus_ratio = 0.0
-        return FocusReport(
-            self.session_started_at, ended_at, durations, focus_ratio, list(self.timeline)
-        )
+        return FocusReport(self.session_started_at, ended_at, durations, focus_ratio, list(self.timeline))
 
-    def reset(self):
+    def reset(self) -> None:
         """
         Reset session.
         """
-        self.state = FocusState.FOCUSED
-        self.alert_level = AlertLevel.NONE
-        self.session_started_at = None
-        self.last_timestamp = None
-        self.candidate_state = None
-        self.candidate_started_at = None
-        self.timeline = []
+        self.state: FocusState = FocusState.FOCUSED
+        self.alert_level: AlertLevel = AlertLevel.NONE
+        self.session_started_at: datetime | None = None
+        self.last_timestamp: datetime | None = None
+        self.state_mismatch_started_at: datetime | None = None
+        self.candidate_state: FocusState | None = None
+        self.candidate_started_at: datetime | None = None
+        self.timeline: list[StateInterval] = []
 
-    def _choose_state(self, results):
+    def _choose_state(self, results: list[DetectionResult]) -> FocusState:
         """
         Choose a single state that best represents the detection results.
         """
-        labels = []
+        labels: list[str] = []
         for result in results:
             if result.triggered:
                 labels.append(result.label)
@@ -184,22 +154,75 @@ class FocusStateMachine:
             return FocusState.PHONE
         return FocusState.FOCUSED
 
-    def _change_state(self, next_state, timestamp):
+    def _change_state(self, next_state: FocusState, timestamp: datetime) -> None:
         """
         Close the current interval and start a new one with a different state.
         """
-        previous_state = self.state
+        previous_state: FocusState = self.state
         self._close_interval(timestamp)
         self.state = next_state
         self.timeline.append(StateInterval(next_state, timestamp))
+        self.__reset_transition()
+
+        FunctionLibrary.log(f"STATE_CHANGED {previous_state.name}->{next_state.name}", LogLevel.NONE)
+        self.__publish_state_event(previous_state, next_state)
+
+    def __load_state_seconds(self) -> None:
+        self.enter_seconds = {
+            FocusState.ABSENT: max(0.0, float(settings_instance.ai_params.get("absence_enter_seconds", 3.0))),
+            FocusState.DROWSY: max(0.0, float(settings_instance.ai_params.get("drowsy_enter_seconds", 3.0))),
+            FocusState.PHONE: max(0.0, float(settings_instance.ai_params.get("phone_enter_seconds", 2.0))),
+        }
+        self.release_seconds = {
+            FocusState.ABSENT: max(0.0, float(settings_instance.ai_params.get("absence_release_seconds", 3.0))),
+            FocusState.DROWSY: max(0.0, float(settings_instance.ai_params.get("drowsy_release_seconds", 3.0))),
+            FocusState.PHONE: max(0.0, float(settings_instance.ai_params.get("phone_release_seconds", 3.0))),
+        }
+
+    def __update_transition(self, observed_state: FocusState, timestamp: datetime) -> None:
+        if self.state_mismatch_started_at is None:
+            self.state_mismatch_started_at = timestamp
+
+        if observed_state != self.candidate_state:
+            self.candidate_state = observed_state
+            self.candidate_started_at = timestamp
+
+    def __can_change_state(self, observed_state: FocusState, timestamp: datetime) -> bool:
+        if self.state_mismatch_started_at is None or self.candidate_started_at is None:
+            return False
+
+        mismatch_seconds: float = (timestamp - self.state_mismatch_started_at).total_seconds()
+        candidate_seconds: float = (timestamp - self.candidate_started_at).total_seconds()
+        if self.state == FocusState.FOCUSED:
+            return candidate_seconds >= self.enter_seconds[observed_state]
+
+        if mismatch_seconds < self.release_seconds[self.state]:
+            return False
+
+        if observed_state == FocusState.FOCUSED:
+            return True
+
+        return candidate_seconds >= self.enter_seconds[observed_state]
+
+    def __reset_transition(self) -> None:
+        self.state_mismatch_started_at = None
         self.candidate_state = None
         self.candidate_started_at = None
 
-        FunctionLibrary.log(
-            f"STATE_CHANGED {previous_state.name}->{next_state.name}",
-            LogLevel.NONE,
-        )
+    def __publish_state_event(self, previous_state: FocusState, next_state: FocusState) -> None:
+        if next_state == FocusState.ABSENT:
+            event_key = EventKey.ABSENCE_DETECTED
+        elif next_state == FocusState.DROWSY:
+            event_key = EventKey.DROWSY_DETECTED
+        elif next_state == FocusState.PHONE:
+            event_key = EventKey.PHONE_DETECTED
+        elif previous_state != FocusState.FOCUSED:
+            event_key = EventKey.ALERT_CLEARED
+        else:
+            return
 
-    def _close_interval(self, timestamp):
+        event_manager.publish(event_key.value, state=next_state)
+
+    def _close_interval(self, timestamp: datetime) -> None:
         if self.timeline and self.timeline[-1].ended_at is None:
             self.timeline[-1].ended_at = timestamp

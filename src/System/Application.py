@@ -7,10 +7,10 @@ from AI.Detector import DetectionPipeline
 from Singleton.Camera import camera_manager
 from Singleton.EffectSound import effect_sound
 from Singleton.Bgm import bgm_manager
-from Singleton.Events import event_manager
 from Singleton.Input import input_manager
-from System.Define import DEBUG, DebugBox, DebugText, DetectionResult, EventKey
+from System.Define import DEBUG, DebugBox, DebugText, DetectionResult
 from System.FunctionLibrary import FunctionLibrary
+from System.StateMachine import FocusStateMachine
 from Singleton.Settings import settings_instance
 from Singleton.Timer import timer_manager
 from UI.UIHandler import UIHandler
@@ -20,7 +20,7 @@ class Application:
         self._running: bool = False
         self._detection_pipeline: DetectionPipeline = None
         self._detection_results: list[DetectionResult] = []
-        self._active_detection_events: set[EventKey] = set()
+        self._state_machine: FocusStateMachine = FocusStateMachine()
         self._tick_callback_id: int | None = None
         self._detection_callback_id: int | None = None
         self._qt_app: QApplication = QApplication(sys.argv)
@@ -112,31 +112,7 @@ class Application:
             return
 
         self._detection_results = self._detection_pipeline.run(frame)
-        self.__publish_detection_events()
-
-    def __publish_detection_events(self) -> None:
-        triggered_events: set[EventKey] = set()
-        for result in self._detection_results:
-            if not result.triggered:
-                continue
-
-            if result.label == "absent":
-                event_key = EventKey.ABSENCE_DETECTED
-            elif result.label == "eyes_closed":
-                event_key = EventKey.DROWSY_DETECTED
-            elif result.label == "phone_detected":
-                event_key = EventKey.PHONE_DETECTED
-            else:
-                continue
-
-            triggered_events.add(event_key)
-            if event_key not in self._active_detection_events:
-                event_manager.publish(event_key.value, label=result.label, metadata=result.metadata)
-
-        if self._active_detection_events and not triggered_events:
-            event_manager.publish(EventKey.ALERT_CLEARED.value)
-
-        self._active_detection_events = triggered_events
+        self._state_machine.update(self._detection_results)
 
     def __render(self) -> None:
         """Render the UI."""
@@ -155,7 +131,7 @@ class Application:
         timer_manager.stop()
         self._detection_pipeline = None
         self._detection_results = []
-        self._active_detection_events.clear()
+        self._state_machine.reset()
         input_manager.shutdown()
         bgm_manager.shutdown()
         effect_sound.shutdown()

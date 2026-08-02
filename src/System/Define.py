@@ -30,6 +30,19 @@ class EventKey(Enum):
     BREAK_REQUESTED : str = "BREAK_REQUESTED"
 
 
+class FocusState(Enum):
+    FOCUSED = "focused"
+    PHONE = "phone"
+    DROWSY = "drowsy"
+    ABSENT = "absent"
+
+
+class AlertLevel(Enum):
+    NONE = 0
+    WARNING = 1
+    ALERT = 2
+
+
 class DetectionResult:
     """Result returned by one detector for one camera frame."""
 
