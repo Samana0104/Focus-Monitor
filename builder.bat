@@ -3,6 +3,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 
 set "PROJECT_DIR=%~dp0"
 set "ENTRY_POINT=%PROJECT_DIR%src\Main.py"
+set "DIST_DIR=%PROJECT_DIR%dist"
 set "OUTPUT_DIR=%PROJECT_DIR%dist\OnDeviceAI"
 set "BUILD_DIR=%PROJECT_DIR%build"
 
@@ -51,11 +52,15 @@ if errorlevel 1 (
 echo [BUILD] Creating OnDeviceAI.exe...
 !PYTHON_CMD! -m PyInstaller ^
     --noconfirm ^
-    --onefile ^
-    --windowed ^
+    --onedir ^
+    --console ^
+    --contents-directory _internal ^
     --name OnDeviceAI ^
     --paths "%PROJECT_DIR%src" ^
-    --distpath "%OUTPUT_DIR%" ^
+    --hidden-import mediapipe.tasks.c ^
+    --collect-binaries mediapipe ^
+    --collect-data insightface ^
+    --distpath "%DIST_DIR%" ^
     --workpath "%BUILD_DIR%\work" ^
     --specpath "%BUILD_DIR%" ^
     "%ENTRY_POINT%"
