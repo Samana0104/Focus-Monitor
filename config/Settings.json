@@ -48,7 +48,13 @@
         "similarity_threshold": 0.65,
         "cell_phone_class": 67,
         "phone_confidence_threshold": 0.2,
-        "phone_face_distance_threshold": 2.5
+        "phone_face_distance_threshold": 2.5,
+        "absence_enter_seconds": 3.0,
+        "drowsy_enter_seconds": 3.0,
+        "phone_enter_seconds": 2.0,
+        "absence_release_seconds": 3.0,
+        "drowsy_release_seconds": 3.0,
+        "phone_release_seconds": 3.0
     },
     "ui_layout": {
         "notification_margin_horizontal": 16,

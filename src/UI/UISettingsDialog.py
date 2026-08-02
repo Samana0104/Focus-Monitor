@@ -1,6 +1,6 @@
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QCloseEvent
-from PySide6.QtWidgets import QDialog, QFrame, QGroupBox, QHBoxLayout, QLabel, QPushButton, QSlider, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QDialog, QFrame, QGroupBox, QHBoxLayout, QLabel, QLayout, QPushButton, QScrollArea, QSlider, QVBoxLayout, QWidget
 
 from Singleton.Bgm import bgm_manager
 from Singleton.EffectSound import effect_sound
@@ -22,6 +22,15 @@ class UISettingsDialog(QDialog):
         ("phone_face_distance_threshold", "휴대폰 거리 기준", "값이 높을수록 얼굴에서 먼 휴대폰도 감지합니다.", 0, 50, 10),
     )
 
+    STATE_PARAMETERS = (
+        ("absence_enter_seconds", "자리비움 감지 시간", "자리비움이 연속된 시간만큼 감지되면 상태를 발동합니다.", 1, 300, 10),
+        ("drowsy_enter_seconds", "졸음 감지 시간", "졸음이 연속된 시간만큼 감지되면 상태를 발동합니다.", 1, 300, 10),
+        ("phone_enter_seconds", "휴대폰 감지 시간", "휴대폰 사용이 연속된 시간만큼 감지되면 상태를 발동합니다.", 1, 300, 10),
+        ("absence_release_seconds", "자리비움 해제 시간", "자리비움이 아닌 상태가 연속된 시간만큼 감지되면 해제합니다.", 1, 300, 10),
+        ("drowsy_release_seconds", "졸음 해제 시간", "졸음이 아닌 상태가 연속된 시간만큼 감지되면 해제합니다.", 1, 300, 10),
+        ("phone_release_seconds", "휴대폰 해제 시간", "휴대폰 사용이 아닌 상태가 연속된 시간만큼 감지되면 해제합니다.", 1, 300, 10),
+    )
+
     def __init__(self, parent=None) -> None:
         super().__init__(parent)
         self.setObjectName("uiSettingsDialog")
@@ -31,7 +40,20 @@ class UISettingsDialog(QDialog):
         root_layout.setContentsMargins(32, 30, 32, 28)
         root_layout.setSpacing(12)
 
-        audio_group: QGroupBox = QGroupBox("소리 볼륨", self)
+        scroll_area: QScrollArea = QScrollArea(self)
+        scroll_area.setObjectName("settingsScrollArea")
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+
+        scroll_content: QWidget = QWidget(scroll_area)
+        scroll_content.setObjectName("settingsScrollContent")
+        scroll_layout: QVBoxLayout = QVBoxLayout(scroll_content)
+        scroll_layout.setContentsMargins(0, 0, 12, 0)
+        scroll_layout.setSpacing(12)
+        scroll_layout.setSizeConstraint(QLayout.SizeConstraint.SetMinimumSize)
+
+        audio_group: QGroupBox = QGroupBox("소리 볼륨", scroll_content)
         audio_group.setObjectName("audioVolumeGroup")
         audio_layout: QVBoxLayout = QVBoxLayout(audio_group)
         audio_layout.setContentsMargins(20, 28, 20, 20)
@@ -40,7 +62,7 @@ class UISettingsDialog(QDialog):
         for key, title, description in self.AUDIO_PARAMETERS:
             audio_layout.addWidget(self.__create_audio_row(key, title, description))
 
-        parameter_group: QGroupBox = QGroupBox("AI 파라미터", self)
+        parameter_group: QGroupBox = QGroupBox("AI 파라미터", scroll_content)
         parameter_group.setObjectName("aiParameterGroup")
         parameter_layout: QVBoxLayout = QVBoxLayout(parameter_group)
         parameter_layout.setContentsMargins(20, 28, 20, 20)
@@ -49,8 +71,20 @@ class UISettingsDialog(QDialog):
         for key, title, description, minimum, maximum, scale in self.AI_PARAMETERS:
             parameter_layout.addWidget(self.__create_parameter_row(key, title, description, minimum, maximum, scale))
 
-        root_layout.addWidget(audio_group)
-        root_layout.addWidget(parameter_group, 1)
+        state_group: QGroupBox = QGroupBox("상태 전환", scroll_content)
+        state_group.setObjectName("stateTransitionGroup")
+        state_layout: QVBoxLayout = QVBoxLayout(state_group)
+        state_layout.setContentsMargins(20, 28, 20, 20)
+        state_layout.setSpacing(18)
+
+        for key, title, description, minimum, maximum, scale in self.STATE_PARAMETERS:
+            state_layout.addWidget(self.__create_parameter_row(key, title, description, minimum, maximum, scale))
+
+        scroll_layout.addWidget(audio_group)
+        scroll_layout.addWidget(parameter_group)
+        scroll_layout.addWidget(state_group)
+        scroll_area.setWidget(scroll_content)
+        root_layout.addWidget(scroll_area, 1)
 
         done_button: QPushButton = QPushButton("완료", self)
         done_button.setObjectName("settingsDoneButton")
@@ -67,7 +101,10 @@ class UISettingsDialog(QDialog):
             audio_settings = {}
             settings_instance.audio = audio_settings
 
-        default_volume = 0.5 if key == "bgm_volume" else 1.0
+        if key == "bgm_volume":
+            default_volume = 0.5
+        else:
+            default_volume = 1.0
         volume = max(0.0, min(1.0, float(audio_settings.get(key, default_volume))))
 
         row, control_layout = self.__create_slider_row(title, description)
@@ -143,7 +180,10 @@ class UISettingsDialog(QDialog):
             effect_sound.set_volume(volume)
 
     def __update_parameter(self, key: str, value: int, scale: int, value_label: QLabel) -> None:
-        converted_value = value if scale == 1 else value / scale
+        if scale == 1:
+            converted_value = value
+        else:
+            converted_value = value / scale
         settings_instance.ai_params[key] = converted_value
         value_label.setText(self.__format_value(value, scale))
 
