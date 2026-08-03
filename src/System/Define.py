@@ -3,7 +3,7 @@ from enum import Enum, auto
 from typing import Any
 
 
-DEBUG = True
+DEBUG = False
 SETTING_PATH = "config/Settings.json"
 RESOURCE_PATH = "res"
 

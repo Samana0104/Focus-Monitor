@@ -53,7 +53,6 @@ echo [BUILD] Creating OnDeviceAI.exe...
 !PYTHON_CMD! -m PyInstaller ^
     --noconfirm ^
     --onedir ^
-    --console ^
     --contents-directory _internal ^
     --name OnDeviceAI ^
     --paths "%PROJECT_DIR%src" ^
