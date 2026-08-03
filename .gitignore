@@ -9,3 +9,6 @@ venv/
 # PyInstaller build outputs
 build/
 dist/
+
+# Generated focus reports
+reports/

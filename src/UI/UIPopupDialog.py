@@ -116,6 +116,7 @@ class UIPopupDialog(QDialog):
         reason_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
         reason_label.setWordWrap(True)
         card_layout.addWidget(reason_label)
+        card_layout.addSpacing(16)
         card_layout.addStretch(1)
 
         button_layout = QHBoxLayout()
