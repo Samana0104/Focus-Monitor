@@ -32,6 +32,8 @@ class UIMainWindow:
         self.side_panel: QFrame
         self.side_layout: QVBoxLayout
         self.utility_layout: QHBoxLayout
+        self.session_timer_label: QLabel
+        self.report_reset_button: QPushButton
         self.report_button: QPushButton
         self.settings_button: QPushButton
         self.notification_list: QListWidget
@@ -106,7 +108,16 @@ class UIMainWindow:
         self.utility_layout = QHBoxLayout()
         self.utility_layout.setContentsMargins(0, 0, 0, 0)
         self.utility_layout.setSpacing(6)
-        self.utility_layout.setAlignment(Qt.AlignmentFlag.AlignRight)
+
+        self.session_timer_label = QLabel("00:00:00", self.side_panel)
+        self.session_timer_label.setObjectName("sessionTimerLabel")
+        self.session_timer_label.setAccessibleName("집중 시간")
+        self.session_timer_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.report_reset_button = QPushButton(self.side_panel)
+        self.report_reset_button.setObjectName("utilityButton")
+        self.report_reset_button.setToolTip("기록 초기화")
+        self.report_reset_button.setAccessibleName("기록 초기화")
 
         self.report_button = QPushButton(self.side_panel)
         self.report_button.setObjectName("utilityButton")
@@ -118,6 +129,9 @@ class UIMainWindow:
         self.settings_button.setToolTip("설정")
         self.settings_button.setAccessibleName("설정")
 
+        self.utility_layout.addWidget(self.session_timer_label, alignment=Qt.AlignmentFlag.AlignLeft)
+        self.utility_layout.addStretch(1)
+        self.utility_layout.addWidget(self.report_reset_button, alignment=Qt.AlignmentFlag.AlignRight)
         self.utility_layout.addWidget(self.report_button, alignment=Qt.AlignmentFlag.AlignRight)
         self.utility_layout.addWidget(self.settings_button, alignment=Qt.AlignmentFlag.AlignRight)
 

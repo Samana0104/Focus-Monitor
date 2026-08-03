@@ -154,7 +154,14 @@ class Application:
         self._tick_callback_id = timer_manager.register_callback(self.__tick, 0, True)
         self._detection_callback_id = timer_manager.register_callback(self.__detect, detection_interval_ms, True)
 
-        self._ui.show_popup(title="가이드", reason="디버그 모드\n1번 버튼 : 부재 감지\n2번 버튼 : 졸음 감지\n3번 버튼 : 휴대폰 감지")
+        guide_message = (
+            "Focus Monitor는 카메라와 온디바이스 AI를 이용해 "
+            "사용자의 집중 상태를 실시간으로 확인하는 프로그램입니다.\n\n"
+            "자리 비움, 졸음, 휴대폰 사용을 감지하면 알림으로 안내하며, "
+            "집중 시간과 상태 변화 구간을 리포트로 확인할 수 있습니다.\n\n"
+            "영상 분석은 사용 중인 기기 안에서 처리됩니다."
+        )
+        self._ui.show_popup(title="Focus Monitor 안내", reason=guide_message)
         try:
             return self._qt_app.exec()
         except Exception as e:

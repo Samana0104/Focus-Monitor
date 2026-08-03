@@ -8,7 +8,6 @@ from PySide6.QtCore import (
     Signal,
     QTimer,
     Qt,
-    QVariantAnimation,
     QUrl,
 )
 from PySide6.QtGui import QDesktopServices, QIcon, QPixmap
@@ -110,7 +109,11 @@ class UIHandler(QMainWindow):
         self.ui: UIMainWindow = UIMainWindow()
         self.ui.setup_ui(self)
         self._animations: list[QParallelAnimationGroup] = []
+        self._reset_animation: QPropertyAnimation | None = None
         self._is_started: bool = False
+        self._session_started_at: float | None = None
+        self._session_elapsed_seconds: float = 0.0
+        self._session_timer_callback_id: int | None = None
         self._ui_settings_dialog: UISettingsDialog = UISettingsDialog(self)
         self._notification_time_timer: QTimer = QTimer(self)
         self._notification_time_timer.setInterval(5000)
@@ -129,6 +132,7 @@ class UIHandler(QMainWindow):
         self.ui.start_button.clicked.connect(self.start_requested)
         self.ui.break_button.clicked.connect(self.break_requested)
         self.ui.settings_button.clicked.connect(self.open_settings)
+        self.ui.report_reset_button.clicked.connect(self.reset_report)
         self.ui.report_button.clicked.connect(self.open_report)
         self.ui.notification_list.verticalScrollBar().rangeChanged.connect(
             self.__keep_notification_scroll_at_bottom
@@ -173,6 +177,13 @@ class UIHandler(QMainWindow):
         if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(report_path))):
             self.show_popup("리포트 열기 실패", f"생성된 파일: {report_path}", icon=QMessageBox.Icon.Warning)
 
+    def reset_report(self, checked: bool = False) -> None:
+        report_manager.clear()
+        self._session_elapsed_seconds = 0.0
+        self._session_started_at = monotonic() if self._is_started else None
+        self.__update_session_timer()
+        self.__animate_notification_reset()
+
     def show_popup(
         self,
         title: str,
@@ -184,6 +195,8 @@ class UIHandler(QMainWindow):
         return popup.exec_standard_button()
 
     def initialize(self) -> None:
+        self._session_timer_callback_id = timer_manager.register_callback(self.__update_session_timer, 1000, True)
+
         self.__subscribe_events()
         self.show()
         self.__set_started(self.__start_camera())
@@ -200,7 +213,7 @@ class UIHandler(QMainWindow):
         card: NotificationCard = NotificationCard()
         card.set_content(title, detail, icon_name)
         target_height: int = settings_instance.ui_layout["notification_height"]
-        item.setSizeHint(QSize(0, 0))
+        item.setSizeHint(QSize(0, target_height))
         self.ui.notification_list.addItem(item)
         self.ui.notification_list.setItemWidget(item, card)
 
@@ -218,21 +231,9 @@ class UIHandler(QMainWindow):
         opacity_animation.setEndValue(1.0)
         opacity_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
 
-        height_animation: QVariantAnimation = QVariantAnimation(self)
-        height_animation.setDuration(duration)
-        height_animation.setStartValue(0)
-        height_animation.setEndValue(target_height)
-        height_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
-        height_animation.valueChanged.connect(
-            lambda value: self.__resize_notification_item(item, int(value))
-        )
-
         group: QParallelAnimationGroup = QParallelAnimationGroup(self)
         group.addAnimation(opacity_animation)
-        group.addAnimation(height_animation)
-        group.finished.connect(
-            lambda: self.__finish_animation(group, item, target_height)
-        )
+        group.finished.connect(lambda: self.__finish_animation(group))
         self._animations.append(group)
 
         self.ui.notification_list.scrollToBottom()
@@ -256,6 +257,9 @@ class UIHandler(QMainWindow):
 
     def shutdown(self) -> None:
         self.__unsubscribe_events()
+        if self._session_timer_callback_id is not None:
+            timer_manager.unregister_callback(self._session_timer_callback_id)
+            self._session_timer_callback_id = None
         self._notification_time_timer.stop()
         camera_manager.stop()
         self.__set_started(False)
@@ -329,9 +333,29 @@ class UIHandler(QMainWindow):
         return False
 
     def __set_started(self, started: bool) -> None:
-        self._is_started = bool(started)
+        started = bool(started)
+        if started != self._is_started:
+            now = monotonic()
+            if started:
+                self._session_started_at = now
+            elif self._session_started_at is not None:
+                self._session_elapsed_seconds += now - self._session_started_at
+                self._session_started_at = None
+
+        self._is_started = started
         self.ui.start_button.setEnabled(not self._is_started)
         self.ui.break_button.setEnabled(self._is_started)
+        self.__update_session_timer()
+
+    def __update_session_timer(self) -> None:
+        elapsed_seconds = self._session_elapsed_seconds
+        if self._session_started_at is not None:
+            elapsed_seconds += monotonic() - self._session_started_at
+
+        total_seconds = max(0, int(elapsed_seconds))
+        hours, remainder = divmod(total_seconds, 3600)
+        minutes, seconds = divmod(remainder, 60)
+        self.ui.session_timer_label.setText(f"{hours:02d}:{minutes:02d}:{seconds:02d}")
 
     def __show_camera_waiting(self) -> None:
         waiting_text: str = str(self.ui.camera_view.property("waitingText"))
@@ -344,6 +368,7 @@ class UIHandler(QMainWindow):
             self.setStyleSheet(stylesheet_path.read_text(encoding="utf-8"))
 
     def __load_icons(self) -> None:
+        self.ui.report_reset_button.setIcon(QIcon(str(FunctionLibrary.get_ui_path() / "reset_icon.png")))
         self.ui.report_button.setIcon(QIcon(str(FunctionLibrary.get_ui_path() / "report_icon.png")))
         self.ui.settings_button.setIcon(QIcon(str(FunctionLibrary.get_ui_path() / "setting_icon.png")))
 
@@ -359,16 +384,61 @@ class UIHandler(QMainWindow):
             oldest_widget.deleteLater()
         del removed_item
 
-    def __finish_animation(self, animation: QParallelAnimationGroup, item: QListWidgetItem, target_height: int) -> None:
-        item.setSizeHint(QSize(0, target_height))
-        self.ui.notification_list.scrollToBottom()
+    def __animate_notification_reset(self) -> None:
+        if self._reset_animation is not None:
+            self._reset_animation.stop()
+            self._reset_animation.deleteLater()
+            self._reset_animation = None
+
+        for animation in self._animations:
+            animation.stop()
+            animation.deleteLater()
+        self._animations.clear()
+
+        self.__animate_next_notification_removal()
+
+    def __animate_next_notification_removal(self) -> None:
+        last_index = self.ui.notification_list.count() - 1
+        if last_index < 0:
+            self._reset_animation = None
+            return
+
+        item = self.ui.notification_list.item(last_index)
+        card = self.ui.notification_list.itemWidget(item)
+        if card is None:
+            self.ui.notification_list.takeItem(last_index)
+            self.__animate_next_notification_removal()
+            return
+
+        opacity_effect = QGraphicsOpacityEffect(card)
+        opacity_effect.setOpacity(1.0)
+        card.setGraphicsEffect(opacity_effect)
+
+        self._reset_animation = QPropertyAnimation(opacity_effect, b"opacity", self)
+        self._reset_animation.setDuration(55)
+        self._reset_animation.setStartValue(1.0)
+        self._reset_animation.setEndValue(0.0)
+        self._reset_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._reset_animation.finished.connect(lambda: self.__finish_notification_removal(item, card))
+        self._reset_animation.start()
+
+    def __finish_notification_removal(self, item: QListWidgetItem, card: QFrame) -> None:
+        row = self.ui.notification_list.row(item)
+        if row >= 0:
+            self.ui.notification_list.removeItemWidget(item)
+            removed_item = self.ui.notification_list.takeItem(row)
+            del removed_item
+        card.deleteLater()
+
+        if self._reset_animation is not None:
+            self._reset_animation.deleteLater()
+            self._reset_animation = None
+        self.__animate_next_notification_removal()
+
+    def __finish_animation(self, animation: QParallelAnimationGroup) -> None:
         if animation in self._animations:
             self._animations.remove(animation)
         animation.deleteLater()
-
-    def __resize_notification_item(self, item: QListWidgetItem, height: int) -> None:
-        item.setSizeHint(QSize(0, height))
-        self.ui.notification_list.scrollToBottom()
 
     def __keep_notification_scroll_at_bottom(self, minimum: int, maximum: int) -> None:
         self.ui.notification_list.verticalScrollBar().setValue(maximum)

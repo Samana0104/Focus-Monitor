@@ -22,6 +22,17 @@ QLabel#cameraView, QVideoWidget#cameraVideo, QStackedWidget#cameraStack {
 }
 
 QLabel#statusLabel { color: #6B7684; font-size: 13px; padding: 4px 2px; }
+QLabel#sessionTimerLabel {
+    color: #1B64DA;
+    background-color: #E8F3FF;
+    border: 1px solid #B7D5FF;
+    border-radius: 10px;
+    min-width: 104px;
+    font-size: 20px;
+    font-weight: 800;
+    font-family: Consolas, monospace;
+    padding: 7px 12px;
+}
 QListWidget#notificationList {
     background-color: #F2F4F6;
     border: 1px solid #E5E8EB;
