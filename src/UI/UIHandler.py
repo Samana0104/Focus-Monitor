@@ -251,10 +251,7 @@ class UIHandler(QMainWindow):
         if self._is_started != camera_manager.is_running:
             self.__set_started(camera_manager.is_running)
 
-        self.ui.status_label.setText(
-            f"FPS: {timer_manager.fps:.1f} | "
-            f"Frame: {timer_manager.frame_count}"
-        )
+        self.ui.status_label.setText(f"FPS: {timer_manager.fps:.1f}")
 
     def shutdown(self) -> None:
         self.__unsubscribe_events()
