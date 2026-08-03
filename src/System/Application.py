@@ -38,6 +38,7 @@ class Application:
         System.FunctionLibrary.log("Application is starting...", System.LogLevel.NONE)
         settings_instance.load()
         report_manager.clear()
+        report_manager.initialize()
 
         self._detection_pipeline = DetectionPipeline()
         input_manager.initialize(self._qt_app)
@@ -135,6 +136,7 @@ class Application:
         self._detection_pipeline = None
         self._detection_results = []
         self._state_machine.reset()
+        report_manager.shutdown()
         input_manager.shutdown()
         bgm_manager.shutdown()
         effect_sound.shutdown()

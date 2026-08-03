@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 STATE_INFO: dict[str, tuple[str, str]] = {
     "focused": ("집중", "focused"),
+    "break": ("휴식", "break"),
     "phone": ("휴대폰", "phone"),
     "drowsy": ("졸음", "drowsy"),
     "absent": ("자리 비움", "absent"),
@@ -32,6 +33,27 @@ class ReportManager(Singleton):
         self._started_at = datetime.now().astimezone()
         self._last_seen_at: datetime | None = None
         self._intervals: list[dict[str, Any]] = []
+        self._events_subscribed = False
+
+    def initialize(self) -> None:
+        if self._events_subscribed:
+            return
+
+        from Singleton.Events import event_manager
+
+        event_manager.subscribe("START_REQUESTED", self._on_start_requested)
+        event_manager.subscribe("BREAK_REQUESTED", self._on_break_requested)
+        self._events_subscribed = True
+
+    def shutdown(self) -> None:
+        if not self._events_subscribed:
+            return
+
+        from Singleton.Events import event_manager
+
+        event_manager.unsubscribe("START_REQUESTED", self._on_start_requested)
+        event_manager.unsubscribe("BREAK_REQUESTED", self._on_break_requested)
+        self._events_subscribed = False
 
     @property
     def record_count(self) -> int:
@@ -47,10 +69,18 @@ class ReportManager(Singleton):
 
     def record_state(self, state: FocusState, timestamp: datetime | None = None) -> None:
         """Merge consecutive samples of the same focus state into one interval."""
+        self._record_state_value(str(state.value), timestamp)
+
+    def _on_start_requested(self, payload: dict[str, Any]) -> None:
+        self._record_state_value("focused")
+
+    def _on_break_requested(self, payload: dict[str, Any]) -> None:
+        self._record_state_value("break")
+
+    def _record_state_value(self, state_value: str, timestamp: datetime | None = None) -> None:
         observed_at = timestamp or datetime.now().astimezone()
         if observed_at.tzinfo is None:
             observed_at = observed_at.astimezone()
-        state_value = str(state.value)
 
         with self._lock:
             if self._last_seen_at is not None and observed_at < self._last_seen_at:
@@ -78,6 +108,8 @@ class ReportManager(Singleton):
             intervals = [dict(interval) for interval in self._intervals]
 
         generated_at = datetime.now().astimezone()
+        if intervals:
+            intervals[-1]["ended_at"] = generated_at
         if output_path is None:
             report_dir = FunctionLibrary.get_root_path() / "reports"
             output_path = report_dir / f"schedule_{generated_at:%Y%m%d_%H%M%S}.html"
@@ -142,15 +174,15 @@ class ReportManager(Singleton):
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>집중 일정 리포트</title>
 <style>
-:root{{--bg:#090d16;--panel:#111827;--line:#263244;--text:#f4f7fb;--muted:#9aa8bc;--focus:#43d39e;--phone:#ffb547;--drowsy:#a78bfa;--absent:#ff6b7a}}
+:root{{--bg:#090d16;--panel:#111827;--line:#263244;--text:#f4f7fb;--muted:#9aa8bc;--focus:#43d39e;--break:#38bdf8;--phone:#ffb547;--drowsy:#a78bfa;--absent:#ff6b7a}}
 *{{box-sizing:border-box}} body{{margin:0;background:radial-gradient(circle at top,#172033 0,var(--bg) 48%);color:var(--text);font-family:Segoe UI,Apple SD Gothic Neo,sans-serif}}
 main{{max-width:1080px;margin:0 auto;padding:48px 24px 72px}} h1{{font-size:34px;margin:0 0 8px}} h2{{margin:0 0 18px;font-size:19px}}
 .sub{{color:var(--muted);line-height:1.7;margin-bottom:28px}} .panel{{background:#111827e8;border:1px solid var(--line);border-radius:18px;padding:22px;margin:18px 0;box-shadow:0 18px 50px #0006}}
-.metrics{{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}} .metric{{background:#0c1320;border:1px solid var(--line);border-top:3px solid;padding:16px;border-radius:12px}}
-.metric span{{display:block;color:var(--muted);font-size:13px;margin-bottom:8px}} .metric strong{{font-size:18px}} .focused{{border-color:var(--focus)!important}} .phone{{border-color:var(--phone)!important}} .drowsy{{border-color:var(--drowsy)!important}} .absent{{border-color:var(--absent)!important}}
+.metrics{{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}} .metric{{background:#0c1320;border:1px solid var(--line);border-top:3px solid;padding:16px;border-radius:12px}}
+.metric span{{display:block;color:var(--muted);font-size:13px;margin-bottom:8px}} .metric strong{{font-size:18px}} .focused{{border-color:var(--focus)!important}} .break{{border-color:var(--break)!important}} .phone{{border-color:var(--phone)!important}} .drowsy{{border-color:var(--drowsy)!important}} .absent{{border-color:var(--absent)!important}}
 .headline{{display:flex;justify-content:space-between;align-items:end;gap:16px}} .ratio{{font-size:30px;font-weight:750;color:var(--focus)}}
 .timeline{{display:flex;min-height:54px;overflow:hidden;background:#080c14;border:1px solid var(--line);border-radius:12px;margin-top:18px}} .segment{{min-width:3px;border:0;border-right:1px solid #08101b}}
-.segment.focused{{background:var(--focus)}} .segment.phone{{background:var(--phone)}} .segment.drowsy{{background:var(--drowsy)}} .segment.absent{{background:var(--absent)}}
+.segment.focused{{background:var(--focus)}} .segment.break{{background:var(--break)}} .segment.phone{{background:var(--phone)}} .segment.drowsy{{background:var(--drowsy)}} .segment.absent{{background:var(--absent)}}
 .axis{{display:flex;justify-content:space-between;color:var(--muted);font-size:12px;margin-top:8px}} .empty-bar{{padding:17px;color:var(--muted)}}
 .table-wrap{{overflow-x:auto}} table{{width:100%;border-collapse:collapse}} th,td{{padding:13px 14px;text-align:left;border-bottom:1px solid var(--line)}} th{{color:var(--muted);font-size:12px;text-transform:uppercase}} td{{color:#e7edf7}}
 .badge{{display:inline-block;border:1px solid;border-radius:999px;padding:5px 11px;background:#ffffff08;font-weight:650}} .empty{{text-align:center;color:var(--muted)}}
