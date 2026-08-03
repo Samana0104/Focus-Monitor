@@ -102,7 +102,7 @@ class GlobalEngines:
 
 class BaseDetector(ABC):
     @abstractmethod
-    def detect(self, frame: np.ndarray) -> DetectionResult:
+    def detect(self, context: FrameContext) -> DetectionResult:
         ...
 
 class DetectionPipeline:
