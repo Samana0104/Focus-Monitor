@@ -154,6 +154,7 @@ class Application:
 
         timer_manager.start()
         self._tick_callback_id = timer_manager.register_callback(self.__tick, 0, True)
+        self._detection_callback_id = timer_manager.register_callback(self.__detect, detection_interval_ms, True)
 
         guide_message = (
             "Focus Monitor는 카메라와 온디바이스 AI를 이용해 "
@@ -163,8 +164,6 @@ class Application:
             "영상 분석은 사용 중인 기기 안에서 처리됩니다."
         )
         self._ui.show_popup(title="Focus Monitor 안내", reason=guide_message)
-
-        self._detection_callback_id = timer_manager.register_callback(self.__detect, detection_interval_ms, True)
         try:
             return self._qt_app.exec()
         except Exception as e:
@@ -172,7 +171,6 @@ class Application:
         finally:
             self._running = False
             self.shutdown()
-
 
     def stop(self) -> None:
         if not self._running:
