@@ -55,6 +55,14 @@ class GlobalEngines:
     @classmethod
     def get_face_analysis(cls) -> FaceAnalysis:
         if cls._face_analysis is None:
+            model_root_path = FunctionLibrary.get_ai_path() / "insightface"
+            model_dir = model_root_path / "models" / "buffalo_l"
+            required_models = ("det_10g.onnx", "w600k_r50.onnx")
+            missing_models = [name for name in required_models if not (model_dir / name).is_file()]
+            if missing_models:
+                raise FileNotFoundError(f"Bundled InsightFace models not found: {', '.join(missing_models)}")
+
+            model_root = str(model_root_path)
             available_providers = ort.get_available_providers()
             use_cuda = "CUDAExecutionProvider" in available_providers       # Use GPU if possible
             FunctionLibrary.log(f"ONNX Runtime {ort.__version__} providers: {available_providers}")
@@ -63,7 +71,7 @@ class GlobalEngines:
             ctx_id = 0 if use_cuda else -1
 
             try:
-                app = FaceAnalysis(name="buffalo_l", allowed_modules=["detection", "recognition"], providers=providers)
+                app = FaceAnalysis(name="buffalo_l", root=model_root, allowed_modules=["detection", "recognition"], providers=providers)
                 app.prepare(ctx_id=ctx_id, det_size=(640, 640))
 
                 sessions = (getattr(model, "session", None) for model in app.models.values())
@@ -73,7 +81,7 @@ class GlobalEngines:
                     raise
                 FunctionLibrary.log(f"InsightFace CUDA init failed; falling back to CPU: {error}", LogLevel.WARNING)
                 use_cuda = False
-                app = FaceAnalysis(name="buffalo_l", allowed_modules=["detection", "recognition"], providers=["CPUExecutionProvider"])
+                app = FaceAnalysis(name="buffalo_l", root=model_root, allowed_modules=["detection", "recognition"], providers=["CPUExecutionProvider"])
                 app.prepare(ctx_id=-1, det_size=(640, 640))
 
             device_name = "GPU (CUDA)" if use_cuda else "CPU"

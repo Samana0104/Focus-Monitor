@@ -4,6 +4,8 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "PROJECT_DIR=%~dp0"
 set "ENTRY_POINT=%PROJECT_DIR%src\Main.py"
 set "APP_ICON=%PROJECT_DIR%res\ui\app_icon.ico"
+set "FACE_DETECTION_MODEL=%PROJECT_DIR%res\ai\insightface\models\buffalo_l\det_10g.onnx"
+set "FACE_RECOGNITION_MODEL=%PROJECT_DIR%res\ai\insightface\models\buffalo_l\w600k_r50.onnx"
 set "DIST_DIR=%PROJECT_DIR%dist"
 set "OUTPUT_DIR=%PROJECT_DIR%dist\OnDeviceAI"
 set "BUILD_DIR=%PROJECT_DIR%build"
@@ -35,6 +37,23 @@ if not exist "%APP_ICON%" (
     exit /b 1
 )
 
+for %%F in ("%FACE_DETECTION_MODEL%" "%FACE_RECOGNITION_MODEL%") do (
+    if not exist "%%~F" (
+        echo [ERROR] InsightFace model was not found:
+        echo         "%%~F"
+        echo         Run git lfs pull before building.
+        pause
+        exit /b 1
+    )
+    if %%~zF LSS 1000000 (
+        echo [ERROR] InsightFace model is not a valid ONNX file:
+        echo         "%%~F"
+        echo         Git LFS pointer detected. Run git lfs pull before building.
+        pause
+        exit /b 1
+    )
+)
+
 !PYTHON_CMD! -m PyInstaller --version >nul 2>&1
 if errorlevel 1 (
     echo [INSTALL] PyInstaller is not installed. Installing it now...
@@ -61,7 +80,7 @@ echo [BUILD] Creating OnDeviceAI.exe...
 !PYTHON_CMD! -m PyInstaller ^
     --noconfirm ^
     --onedir ^
-    --windowed ^
+    --console ^
     --contents-directory _internal ^
     --name OnDeviceAI ^
     --icon "%APP_ICON%" ^
