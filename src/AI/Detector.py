@@ -186,7 +186,7 @@ class AbsenceDetector(BaseDetector):
         return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
     def _is_person_near_last_bbox(self, yolo_results: Optional[List[Results]], person_class: int) -> bool:
-        """YOLO 감지 BBox가 마지막으로 확인된 얼굴 위치 근처(ROI)에 존재하는지 확인"""
+        """ Checks if YOLO-detected person is the owner of face last identified as user. """
         if not yolo_results or self._last_known_bbox is None:
             return False
 
@@ -211,7 +211,7 @@ class AbsenceDetector(BaseDetector):
                     # Check whether person exists in ROI
                     dist = ((person_cx - face_cx) ** 2 + (py1 - face_cy) ** 2) ** 0.5
 
-                    # If person is close enough to face & person is 
+                    # If person is close enough to face & person bbox is larger than face bbox 
                     if dist <= threshold_dist and person_area >= face_area:
                         return True
         return False
@@ -224,13 +224,12 @@ class AbsenceDetector(BaseDetector):
 
         person_class = int(settings_instance.ai_params.get("person_class", 0))
 
-        # -------------------------------------------------------------
-        # 1차 검증: InsightFace를 통한 얼굴 감지 및 유사도 비교
-        # -------------------------------------------------------------
+        # InsightFace : check if there exists a face identified as user
         ret, test_emb, bbox = self.get_embedding(context.frame)
 
         if ret and test_emb is not None:
             if self._known_emb is not None:
+                # Check similarity with known embedding
                 similarity = self.cosine_similarity(self._known_emb, test_emb)
                 metadata["similarity"] = similarity
                 
@@ -251,14 +250,10 @@ class AbsenceDetector(BaseDetector):
                 FunctionLibrary.log("Reference face registered automatically.")
                 return DetectionResult(label, triggered, metadata)
 
-        # -------------------------------------------------------------
-        # 2차 검증: InsightFace 미감지 시 (필기 등으로 고개 숙임), 
-        #           마지막 확인 위치 기준 YOLO 'person' 존재 여부 확인
-        # -------------------------------------------------------------
+        # YOLO : if InsightFace cannot detect user face, checks if there is a person close and large enough instead.
         if self._is_person_near_last_bbox(context.yolo_results, person_class):
             triggered = False
-            # 기존 face_bbox는 연관성 저하 예방을 위해 None으로 유지하여
-            # EyeDetector 등의 오작동을 방지함.
+            # Make sure that face_bbox stays None so that EyeDetector and etc does not error.
 
         return DetectionResult(label, triggered, metadata)
 
@@ -275,6 +270,7 @@ class EyeDetector(BaseDetector):
         return ((p1.x - p2.x) ** 2 + (p1.y - p2.y) ** 2) ** 0.5
 
     def calculate_ear(self, landmarks: Sequence[Any], eye_indices: Sequence[int]) -> float:
+        """ Calculate EAR. """
         left = landmarks[eye_indices[0]]
         top_left = landmarks[eye_indices[1]]
         top_right = landmarks[eye_indices[2]]
@@ -356,7 +352,7 @@ class PhoneDetector(BaseDetector):
 
         closest_distance = None
 
-        # 파이프라인에서 전달받은 shared_yolo_results 재사용
+        # Reuse shared_yolo_results
         for result in context.yolo_results:
             if result.boxes is None:
                 continue
@@ -379,6 +375,6 @@ class PhoneDetector(BaseDetector):
 
         metadata["norm_distance"] = closest_distance
         if closest_distance is not None:
-            triggered = closest_distance < float(settings_instance.ai_params["phone_face_distance_threshold"])
+            triggered = closest_distance < float(settings_instance.ai_params["phone_face_distance_threshold"])  # if the phone is close enough
 
         return DetectionResult(label, triggered, metadata)
