@@ -61,6 +61,7 @@ echo [BUILD] Creating OnDeviceAI.exe...
 !PYTHON_CMD! -m PyInstaller ^
     --noconfirm ^
     --onedir ^
+    --windowed ^
     --contents-directory _internal ^
     --name OnDeviceAI ^
     --icon "%APP_ICON%" ^
