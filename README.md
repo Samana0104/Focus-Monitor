@@ -114,7 +114,7 @@ Focus-Monitor/
 ├─ res/
 │  ├─ ai/                         # YOLO 및 MediaPipe 모델 파일
 │  ├─ audio/                      # 알림 효과음
-│  └─ ui/                         # 아이콘과 Qt 스타일시트
+│  └─ ui/                         # 앱·기능 아이콘과 Qt 스타일시트
 ├─ src/
 │  ├─ AI/
 │  │  └─ Detector.py              # 모델 로딩과 감지 파이프라인

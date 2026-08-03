@@ -3,6 +3,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 
 set "PROJECT_DIR=%~dp0"
 set "ENTRY_POINT=%PROJECT_DIR%src\Main.py"
+set "APP_ICON=%PROJECT_DIR%res\ui\app_icon.ico"
 set "DIST_DIR=%PROJECT_DIR%dist"
 set "OUTPUT_DIR=%PROJECT_DIR%dist\OnDeviceAI"
 set "BUILD_DIR=%PROJECT_DIR%build"
@@ -23,6 +24,13 @@ if not errorlevel 1 (
 if not exist "%ENTRY_POINT%" (
     echo [ERROR] Entry point was not found:
     echo         "%ENTRY_POINT%"
+    pause
+    exit /b 1
+)
+
+if not exist "%APP_ICON%" (
+    echo [ERROR] Application icon was not found:
+    echo         "%APP_ICON%"
     pause
     exit /b 1
 )
@@ -55,6 +63,7 @@ echo [BUILD] Creating OnDeviceAI.exe...
     --onedir ^
     --contents-directory _internal ^
     --name OnDeviceAI ^
+    --icon "%APP_ICON%" ^
     --paths "%PROJECT_DIR%src" ^
     --hidden-import mediapipe.tasks.c ^
     --collect-binaries mediapipe ^

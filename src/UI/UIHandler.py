@@ -122,6 +122,7 @@ class UIHandler(QMainWindow):
         self.notification_received.connect(self.add_notification)
 
         self.setWindowTitle(settings_instance["window_title"])
+        self.setWindowIcon(QIcon(str(FunctionLibrary.get_ui_path() / "app_icon.png")))
         self.resize(
             settings_instance["window_width"],
             settings_instance["window_height"],
