@@ -8,6 +8,7 @@ from Singleton.Camera import camera_manager
 from Singleton.EffectSound import effect_sound
 from Singleton.Bgm import bgm_manager
 from Singleton.Input import input_manager
+from Singleton.Report import report_manager
 from System.Define import DEBUG, DebugBox, DebugText, DetectionResult
 from System.FunctionLibrary import FunctionLibrary
 from System.StateMachine import FocusStateMachine
@@ -36,6 +37,7 @@ class Application:
 
         System.FunctionLibrary.log("Application is starting...", System.LogLevel.NONE)
         settings_instance.load()
+        report_manager.clear()
 
         self._detection_pipeline = DetectionPipeline()
         input_manager.initialize(self._qt_app)
@@ -112,7 +114,8 @@ class Application:
             return
 
         self._detection_results = self._detection_pipeline.run(frame)
-        self._state_machine.update(self._detection_results)
+        focus_state = self._state_machine.update(self._detection_results)
+        report_manager.record_state(focus_state)
 
     def __render(self) -> None:
         """Render the UI."""

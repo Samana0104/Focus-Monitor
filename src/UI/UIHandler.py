@@ -9,8 +9,9 @@ from PySide6.QtCore import (
     QTimer,
     Qt,
     QVariantAnimation,
+    QUrl,
 )
-from PySide6.QtGui import QIcon, QPixmap
+from PySide6.QtGui import QDesktopServices, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
@@ -25,6 +26,7 @@ from PySide6.QtWidgets import (
 from Singleton.Camera import camera_manager
 from Singleton.Events import Payload, event_manager
 from Singleton.Settings import settings_instance
+from Singleton.Report import report_manager
 from Singleton.Timer import timer_manager
 from Singleton.EffectSound import effect_sound
 from System.Define import EventKey
@@ -127,6 +129,7 @@ class UIHandler(QMainWindow):
         self.ui.start_button.clicked.connect(self.start_requested)
         self.ui.break_button.clicked.connect(self.break_requested)
         self.ui.settings_button.clicked.connect(self.open_settings)
+        self.ui.report_button.clicked.connect(self.open_report)
         self.ui.notification_list.verticalScrollBar().rangeChanged.connect(
             self.__keep_notification_scroll_at_bottom
         )
@@ -158,6 +161,17 @@ class UIHandler(QMainWindow):
         self._ui_settings_dialog.move(dialog_geometry.topLeft())
         self._ui_settings_dialog.raise_()
         self._ui_settings_dialog.activateWindow()
+
+    def open_report(self, checked: bool = False) -> None:
+        try:
+            report_path = report_manager.export_html()
+        except OSError as error:
+            self.show_popup("리포트 생성 실패", str(error), icon=QMessageBox.Icon.Critical)
+            return
+
+        self.show_popup("리포트 저장 완료", f"다음 위치에 저장했습니다.\n\n{report_path}", icon=QMessageBox.Icon.Information)
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(report_path))):
+            self.show_popup("리포트 열기 실패", f"생성된 파일: {report_path}", icon=QMessageBox.Icon.Warning)
 
     def show_popup(
         self,
