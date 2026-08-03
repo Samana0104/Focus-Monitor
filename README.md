@@ -85,6 +85,14 @@ py src\Main.py
 
 빌드 결과는 `dist/OnDeviceAI/`에 생성되며, 실행에 필요한 `config/`와 `res/` 리소스도 함께 복사됩니다.
 
+추론에 사용하지 않는 개발·시각화 모듈을 제외한 최적화 빌드는 다음 명령으로 생성합니다.
+
+```powershell
+.\builder_optimized.bat
+```
+
+최적화 결과는 `dist_optimized/OnDeviceAI/`에 별도로 생성됩니다. 이 빌드는 Pandas, Polars, scikit-learn, pytest 및 사용하지 않는 InsightFace GUI·face3d 모듈을 제외합니다.
+
 ## 사용 방법
 
 1. 프로그램을 실행하면 기본 카메라를 연결하고 모니터링을 시작합니다.
@@ -138,6 +146,7 @@ Focus-Monitor/
 │  └─ Main.py                     # 프로그램 진입점
 ├─ reports/                       # 실행 중 생성되는 HTML 리포트
 ├─ builder.bat                    # PyInstaller 빌드 스크립트
+├─ builder_optimized.bat          # 추론 전용 모듈만 포함하는 최적화 빌드
 ├─ libraries.txt                  # Python 패키지 목록
 └─ library_installer.bat          # CPU/GPU 환경별 설치 스크립트
 ```
