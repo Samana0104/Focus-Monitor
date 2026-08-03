@@ -94,7 +94,8 @@ class Application:
             for eye_bbox in eye_result.metadata.get("eye_boxes", []):
                 boxes.append(DebugBox(eye_bbox, eye_color, f"EYE {ear:.2f}"))
 
-        if input_manager.is_key_down(Qt.Key.Key_3):
+        #if input_manager.is_key_down(Qt.Key.Key_3):
+        if True:
             if phone_result.triggered:
                 phone_color = (0, 0, 255)
             else:
