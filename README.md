@@ -49,10 +49,18 @@ Focus Monitor는 자리 비움, 졸음, 휴대폰 사용을 감지해 화면 알
 - Python 및 pip
 - 웹캠
 - NVIDIA GPU는 선택 사항이며, GPU가 없어도 CPU 모드로 실행할 수 있습니다.
+- InsightFace 모델은 프로젝트 리소스에 포함되어 첫 실행 시 별도 다운로드가 필요하지 않습니다.
 
 ## 설치 및 실행
 
 ### 1. 라이브러리 설치
+
+InsightFace ONNX 모델은 Git LFS로 관리됩니다. 저장소를 처음 받은 경우 실제 모델 파일을 먼저 내려받습니다.
+
+```powershell
+git lfs install
+git lfs pull
+```
 
 프로젝트 루트에서 다음 배치 파일을 실행합니다.
 
@@ -84,14 +92,6 @@ py src\Main.py
 ```
 
 빌드 결과는 `dist/OnDeviceAI/`에 생성되며, 실행에 필요한 `config/`와 `res/` 리소스도 함께 복사됩니다.
-
-추론에 사용하지 않는 개발·시각화 모듈을 제외한 최적화 빌드는 다음 명령으로 생성합니다.
-
-```powershell
-.\builder_optimized.bat
-```
-
-최적화 결과는 `dist_optimized/OnDeviceAI/`에 별도로 생성됩니다. 이 빌드는 Pandas, Polars, scikit-learn, pytest 및 사용하지 않는 InsightFace GUI·face3d 모듈을 제외합니다.
 
 ## 사용 방법
 
@@ -146,7 +146,6 @@ Focus-Monitor/
 │  └─ Main.py                     # 프로그램 진입점
 ├─ reports/                       # 실행 중 생성되는 HTML 리포트
 ├─ builder.bat                    # PyInstaller 빌드 스크립트
-├─ builder_optimized.bat          # 추론 전용 모듈만 포함하는 최적화 빌드
 ├─ libraries.txt                  # Python 패키지 목록
 └─ library_installer.bat          # CPU/GPU 환경별 설치 스크립트
 ```
